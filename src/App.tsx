@@ -1,6 +1,6 @@
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api, Track } from "./api";
-import { IBack, IForward, IHeart, IHome, ILibrary, ISearch, ISettings, IWand } from "./icons";
+import { IBack, IDownload, IForward, IHeart, IHome, ILibrary, ISearch, ISettings, IWand } from "./icons";
 import { plural, showArtists, suggestions } from "./model";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LOCALE, t } from "./i18n";
@@ -193,8 +193,44 @@ function TopBar() {
           <kbd>Ctrl K</kbd>
         </label>
       </div>
-      <div className="top-right" />
+      <div className="top-right">
+        <UpdateButton />
+      </div>
     </div>
+  );
+}
+
+/** Versão nova no GitHub: um clique baixa, confere, instala e reabre o Toxify. */
+function UpdateButton() {
+  const s = useStore();
+  const [version, setVersion] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const check = () => api.checkUpdate().then((u) => setVersion(u?.version ?? null)).catch(() => {});
+    check();
+    // App que fica dias aberto também fica sabendo.
+    const id = window.setInterval(check, 6 * 3600 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!version) return null;
+  return (
+    <button
+      className="btn primary update-btn"
+      disabled={busy}
+      title={t("Toxify {v} disponível. Baixa, instala e abre de novo sozinho; playlists e curtidas continuam.", { v: version })}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await api.installUpdate();
+        } catch (e) {
+          setBusy(false);
+          s.showToast({ text: t("Não deu pra atualizar: {e}", { e: String(e) }) });
+        }
+      }}
+    >
+      <IDownload size={16} />
+      {busy ? t("Baixando…") : t("Atualizar")}
+    </button>
   );
 }
 

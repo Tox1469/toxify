@@ -125,6 +125,11 @@ export const api = {
   saveTags: (changes: Change[]) => invoke<string[]>("save_tags", { changes }),
   undoTags: () => invoke<number>("undo_tags"),
   hasUndo: () => invoke<boolean>("has_undo"),
+
+  /** Versão nova publicada no GitHub (null = está em dia ou sem internet). */
+  checkUpdate: () => invoke<{ version: string } | null>("check_update"),
+  /** Baixa, confere e abre o instalador; o app fecha e o instalador reabre ele já atualizado. */
+  installUpdate: () => invoke("install_update"),
 };
 
 export function on<T>(event: string, cb: (payload: T) => void): Promise<UnlistenFn> {

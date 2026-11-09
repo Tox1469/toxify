@@ -4252,7 +4252,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "toxify"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "cc",
@@ -4265,6 +4265,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "symphonia",
  "tauri",
  "tauri-build",

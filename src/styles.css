@@ -429,6 +429,19 @@ select {
 }
 .top-right {
   width: 76px;
+  display: flex;
+  justify-content: flex-end;
+}
+.update-btn {
+  height: 32px;
+  padding: 0 14px 0 12px;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.update-btn:disabled {
+  cursor: progress;
+  opacity: 0.8;
 }
 .home-btn {
   width: 48px;

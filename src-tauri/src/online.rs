@@ -126,7 +126,7 @@ struct DeezerArtist {
 impl Online {
     pub fn new(cache: PathBuf) -> Online {
         let http = reqwest::Client::builder()
-            .user_agent("Toxify/0.1 (player de musica pessoal)")
+            .user_agent(concat!("Toxify/", env!("CARGO_PKG_VERSION"), " (github.com/Tox1469/toxify)"))
             .timeout(Duration::from_secs(12))
             .build()
             .expect("cliente http");
@@ -387,11 +387,68 @@ impl Online {
         }
         Some((lang, out))
     }
+
+    // ------------------------------------------------ atualização
+
+    /// Última versão publicada no GitHub, se for mais nova que esta.
+    pub async fn check_update(&self) -> Option<Update> {
+        let v: serde_json::Value = self
+            .http
+            .get("https://api.github.com/repos/Tox1469/toxify/releases/latest")
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await
+            .ok()?
+            .json()
+            .await
+            .ok()?;
+        let version = v["tag_name"].as_str()?.trim_start_matches('v').to_string();
+        if !newer(&version, env!("CARGO_PKG_VERSION")) {
+            return None;
+        }
+        let asset = v["assets"].as_array()?.iter().find(|a| a["name"] == "Toxify-Setup.exe")?;
+        let sha256 = asset["digest"].as_str()?.strip_prefix("sha256:")?.to_string();
+        let url = asset["browser_download_url"].as_str()?.to_string();
+        Some(Update { version, url, sha256 })
+    }
+
+    /// Baixa o instalador e só grava se o SHA-256 bater com o publicado na release.
+    pub async fn download_update(&self, u: &Update, to: &Path) -> anyhow::Result<()> {
+        use sha2::{Digest, Sha256};
+        let bytes = self.http.get(&u.url).timeout(Duration::from_secs(300)).send().await?.error_for_status()?.bytes().await?;
+        if format!("{:x}", Sha256::digest(&bytes)) != u.sha256 {
+            anyhow::bail!("o instalador baixado não confere com o da release");
+        }
+        std::fs::write(to, &bytes)?;
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Clone)]
+pub struct Update {
+    pub version: String,
+    pub url: String,
+    pub sha256: String,
+}
+
+/// "0.10.0" > "0.9.9": compara número a número.
+fn newer(a: &str, b: &str) -> bool {
+    let n = |s: &str| s.split('.').map(|x| x.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+    n(a) > n(b)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn versao_mais_nova() {
+        assert!(newer("0.2.1", "0.2.0"));
+        assert!(newer("0.10.0", "0.9.9"));
+        assert!(newer("1.0", "0.9.9"));
+        assert!(!newer("0.2.0", "0.2.0"));
+        assert!(!newer("0.1.9", "0.2.0"));
+    }
 
     #[test]
     fn lrc_e_artista() {

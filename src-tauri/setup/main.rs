@@ -266,6 +266,8 @@ fn close_toxify() -> Result<(), String> {
 
 struct Setup {
     uninstall: bool,
+    /// Aberto pelo botão "Atualizar" do app: instala direto e reabre o Toxify, sem perguntar nada.
+    update: bool,
     /// Desinstalador rodando de dentro da pasta: apagar ao sair.
     cleanup: Mutex<Option<(PathBuf, PathBuf)>>,
 }
@@ -273,6 +275,9 @@ struct Setup {
 #[derive(Serialize)]
 struct Info {
     uninstall: bool,
+    update: bool,
+    /// Marcar "atalho na Área de Trabalho": sim na primeira instalação; ao atualizar, só se ainda existe.
+    desktop: bool,
     version: &'static str,
     dir: String,
     installed: Option<String>,
@@ -295,8 +300,11 @@ fn emitter(app: &AppHandle) -> impl Fn(&str, f64) + use<> {
 #[tauri::command]
 fn info(s: State<'_, Setup>) -> Info {
     let found = installed(KEY);
+    let link = known(&windows::Win32::UI::Shell::FOLDERID_Desktop).join(LINK).is_file();
     Info {
         uninstall: s.uninstall,
+        update: s.update,
+        desktop: found.is_none() || link,
         version: VERSION,
         dir: found.as_ref().map(|f| f.0.clone()).unwrap_or_else(default_dir).display().to_string(),
         installed: found.map(|f| f.1),
@@ -369,9 +377,10 @@ fn webview_missing() {
 
 fn main() {
     let uninstall = std::env::args().any(|a| a == "--uninstall");
+    let update = std::env::args().any(|a| a == "--update");
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(Setup { uninstall, cleanup: Mutex::new(None) })
+        .manage(Setup { uninstall, update, cleanup: Mutex::new(None) })
         .invoke_handler(tauri::generate_handler![info, pick_dir, run_install, run_uninstall, open_toxify])
         .setup(move |app| {
             let built = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))

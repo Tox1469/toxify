@@ -387,6 +387,26 @@ async fn lyrics(s: State<'_, App>, id: i64, to: Option<String>) -> R<Option<Lyri
     Ok(Some(l))
 }
 
+// ---------------------------------------------------------------- atualização
+
+#[tauri::command]
+async fn check_update(s: State<'_, App>) -> R<Option<online::Update>> {
+    Ok(s.online.clone().check_update().await)
+}
+
+/// Baixa e confere o instalador da última release, abre ele no modo `--update` (instala e reabre o
+/// Toxify sozinho) e fecha o app. A URL vem da consulta feita aqui, nunca da tela.
+#[tauri::command]
+async fn install_update(app: AppHandle, s: State<'_, App>) -> R<()> {
+    let online = s.online.clone();
+    let u = online.check_update().await.ok_or("não achei a versão nova no GitHub")?;
+    let exe = std::env::temp_dir().join(format!("Toxify-Setup-{}.exe", u.version));
+    online.download_update(&u, &exe).await.map_err(err)?;
+    std::process::Command::new(&exe).arg("--update").spawn().map_err(err)?;
+    app.exit(0);
+    Ok(())
+}
+
 // ---------------------------------------------------------------- tags
 
 #[tauri::command]
@@ -657,7 +677,9 @@ pub fn run() {
             lyrics,
             save_tags,
             undo_tags,
-            has_undo
+            has_undo,
+            check_update,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("erro ao abrir o Toxify");

@@ -382,4 +382,11 @@ const EN: Record<string, string> = {
   "Renomear pra \"{name}\"": "Rename to \"{name}\"",
   "Muda o \"artista do álbum\" em {tracks}. Se já existir um artista com esse nome, os dois viram um só (bom pra juntar \"Ye\" com \"Kanye West\").":
     "Changes the \"album artist\" on {tracks}. If an artist with that name already exists, the two become one (handy for merging \"Ye\" with \"Kanye West\").",
+
+  // ---------------------------------------------------------------- atualização
+  "Toxify {v} disponível. Baixa, instala e abre de novo sozinho; playlists e curtidas continuam.":
+    "Toxify {v} is available. Downloads, installs and reopens by itself; playlists and likes stay.",
+  "Não deu pra atualizar: {e}": "Couldn't update: {e}",
+  "Baixando…": "Downloading…",
+  "Atualizar": "Update",
 };
