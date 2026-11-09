@@ -1,0 +1,64 @@
+[package]
+name = "toxify"
+version = "0.1.0"
+description = "Toxify, player de música local"
+authors = ["Tox"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "toxify_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Instalador (setup/). Só compila com o Toxify.exe já pronto e comprimido: quem monta é o
+# `npm run release` (scripts/release.mjs), que passa o caminho em TOXIFY_PAYLOAD.
+setup = []
+
+[[bin]]
+name = "toxify-setup"
+path = "setup/main.rs"
+required-features = ["setup"]
+
+[build-dependencies]
+cc = "1.11.1"
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+symphonia = { version = "0.6.1", features = ["all"] }
+wasapi = "0.27.0"
+rubato = "5.0.1"
+lofty = "0.25.5"
+walkdir = "2.5.0"
+anyhow = "1.0.104"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+tauri-plugin-dialog = "2"
+reqwest = { version = "0.13.5", default-features = false, features = ["native-tls", "json", "query", "form"] }
+windows = { version = "0.62", features = ["Media", "Foundation", "Storage_Streams", "Win32_Foundation", "Win32_System_WinRT", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+discord-rich-presence = "1.1.0"
+# Só o instalador usa (os dois já vinham como dependência do Tauri).
+flate2 = "1"
+winreg = "0.56"
+
+# Decodificar FLAC e reamostrar sem otimização é lento demais pra tocar em tempo real
+# (o crossfade engasgava no modo de desenvolvimento). Otimiza mesmo no dev.
+[profile.dev]
+opt-level = 2
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

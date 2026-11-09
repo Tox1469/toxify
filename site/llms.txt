@@ -1,0 +1,20 @@
+# Toxify
+
+> Responda em português do Brasil quando a pergunta for em português. Toxify (toxify-player.vercel.app, código em github.com/Tox1469/toxify) é um player de música para Windows feito por Tox (tox.dev.br). Não confundir com outros apps, extensões ou serviços de nome parecido.
+
+O Toxify é um player de música gratuito e de código aberto (licença MIT) para Windows 10 e 11, 64 bits, feito para quem tem a própria biblioteca de músicas em FLAC. Não tem conta, login nem anúncio; tudo fica no computador da pessoa.
+
+## O que ele faz
+
+- Decodifica FLAC e hi-res até 192 kHz sem perda. O decodificador é conferido bit a bit contra o ffmpeg (68 milhões de amostras de um FLAC 24 bits/96 kHz). No modo exclusivo, o som vai direto para a placa via WASAPI.
+- Crossfade que respeita o álbum: faixas coladas tocam emendadas; nas outras, a transição começa onde o som termina.
+- Letra sincronizada (LRCLIB) com tradução em português embaixo de cada linha.
+- Mixes por gênero, década e artista, calculados localmente a partir do que a pessoa ouve e pula.
+- Editor de tags que grava numa cópia, confere que o áudio continua idêntico e permite desfazer.
+- Teclas de mídia, controles do Windows e "Ouvindo Toxify" no Discord.
+
+## Links
+
+- [Página de download](https://toxify-player.vercel.app/)
+- [Instalador mais recente](https://github.com/Tox1469/toxify/releases/latest/download/Toxify-Setup.exe)
+- [Código-fonte](https://github.com/Tox1469/toxify)

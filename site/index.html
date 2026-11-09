@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Toxify · Player de música FLAC para Windows</title>
+<meta name="description" content="Player de música para Windows, gratuito e de código aberto, feito para quem tem a própria biblioteca em FLAC. Som sem perda, letra com tradução e mixes do seu gosto. Sem conta e sem login." />
+<link rel="canonical" href="https://toxify-player.vercel.app/" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#000000" />
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="pt_BR" />
+<meta property="og:site_name" content="Toxify" />
+<meta property="og:title" content="Toxify · Player de música FLAC para Windows" />
+<meta property="og:description" content="Gratuito e de código aberto. Som sem perda, letra com tradução e mixes do seu gosto. Sem conta e sem login." />
+<meta property="og:url" content="https://toxify-player.vercel.app/" />
+<meta property="og:image" content="https://toxify-player.vercel.app/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Toxify",
+  "description": "Player de música para Windows feito para bibliotecas em FLAC: decodificação sem perda, crossfade que respeita o álbum, letra com tradução e mixes calculados no próprio computador.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "softwareVersion": "0.1.0",
+  "inLanguage": "pt-BR",
+  "license": "https://opensource.org/licenses/MIT",
+  "downloadUrl": "https://github.com/Tox1469/toxify/releases/latest/download/Toxify-Setup.exe",
+  "codeRepository": "https://github.com/Tox1469/toxify",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
+  "author": { "@type": "Person", "name": "Tox", "url": "https://tox.dev.br" }
+}
+</script>
+<style>
+  :root {
+    --bg: #000;
+    --panel: #121212;
+    --elev: #1c1c1e;
+    --line: rgba(255, 255, 255, 0.1);
+    --text: #fff;
+    --muted: #b3b3b3;
+    --dim: #8a8a8f;
+    --accent: #8b7cf6;
+    --accent-hi: #a397f9;
+    --on-accent: #0b0b0c;
+    --gutter: 24px;
+    color-scheme: dark;
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); overflow-x: hidden; }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; }
+  h1, h2, .display { font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  .wrap { width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 var(--gutter); }
+  :focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; border-radius: 4px; }
+
+  /* topo */
+  .top { display: flex; align-items: center; height: 72px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; text-decoration: none; }
+  .top nav { margin-left: auto; display: flex; gap: 28px; font-size: 14px; font-weight: 600; }
+  .top nav a { color: var(--muted); text-decoration: none; cursor: pointer; }
+  .top nav a:hover { color: var(--text); }
+
+  /* abertura */
+  .hero { position: relative; padding: 72px 0 56px; }
+  .hero h1 { font-size: clamp(36px, 5.6vw, 64px); line-height: 1.04; letter-spacing: -0.025em; font-weight: 700; margin: 0; max-width: 760px; }
+  .hero .lead { font-size: clamp(17px, 1.7vw, 19px); color: var(--muted); max-width: 600px; margin: 24px 0 0; }
+  .curves { position: absolute; right: -40px; top: 40px; width: 460px; height: auto; pointer-events: none; }
+  .curves path { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; }
+  .curves .out { stroke-opacity: 0.3; }
+  .cta { margin-top: 40px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+  .download { display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 30px 0 26px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 17px; text-decoration: none; cursor: pointer; transition: background 0.15s, transform 0.15s; }
+  .download:hover { background: var(--accent-hi); transform: scale(1.03); }
+  .download:active { transform: scale(0.98); }
+  .cta .meta { color: var(--dim); font-size: 14px; line-height: 1.5; }
+  .cta .meta strong { color: var(--muted); font-weight: 600; }
+  .note-os { display: none; margin: 18px 0 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--panel); color: var(--muted); font-size: 15px; max-width: 600px; }
+  .not-windows .note-os { display: block; }
+
+  /* print do app */
+  .shot { margin: 8px auto 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 40px 120px -30px rgba(139, 124, 246, 0.25), 0 30px 60px -20px rgba(0, 0, 0, 0.8); background: var(--panel); }
+  .shot img { width: 100%; height: auto; aspect-ratio: 16 / 10; }
+
+  /* seções */
+  section.block { padding: 112px 0 0; }
+  .block h2 { font-size: clamp(28px, 3.4vw, 40px); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 40px; font-weight: 700; }
+  dl.features { margin: 0; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); column-gap: 48px; }
+  dl.features dt, dl.features dd { margin: 0; padding: 26px 0; border-top: 1px solid var(--line); }
+  dl.features dt { font-weight: 700; font-size: 18px; line-height: 1.35; }
+  dl.features dd { color: var(--muted); max-width: 640px; }
+  dl.features dd b { color: var(--text); font-weight: 600; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; counter-reset: s; }
+  ol.steps li { counter-increment: s; border-top: 1px solid var(--line); padding-top: 22px; color: var(--muted); }
+  ol.steps li::before { content: counter(s); display: block; font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; font-weight: 700; font-size: 15px; color: var(--accent); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+  ol.steps h3 { margin: 0 0 8px; color: var(--text); font-size: 18px; line-height: 1.35; }
+  ol.steps p { margin: 0; }
+  ol.steps b { color: var(--text); font-weight: 600; }
+
+  .open { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; border-top: 1px solid var(--line); padding-top: 32px; }
+  .open p { margin: 0; color: var(--muted); max-width: 620px; font-size: 17px; }
+  .open p + p { margin-top: 12px; }
+  .links { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.35); font-weight: 600; font-size: 15px; text-decoration: none; cursor: pointer; transition: border-color 0.15s, transform 0.15s; white-space: nowrap; }
+  .btn:hover { border-color: #fff; transform: scale(1.03); }
+  code { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 0.9em; background: var(--elev); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+
+  footer { margin-top: 128px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; align-items: center; gap: 16px; height: 80px; color: var(--dim); font-size: 14px; }
+  footer .built { margin-left: auto; color: var(--dim); text-decoration: none; cursor: pointer; }
+  footer .built:hover { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .curves { display: none; }
+    dl.features { grid-template-columns: minmax(0, 1fr); }
+    dl.features dd { border-top: 0; padding-top: 0; }
+    dl.features dt { padding-bottom: 8px; }
+    ol.steps { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .open { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 560px) {
+    :root { --gutter: 16px; }
+    .top nav a.hide-sm { display: none; }
+    .hero { padding: 40px 0 40px; }
+    .download { width: 100%; justify-content: center; }
+    section.block { padding-top: 80px; }
+    footer .wrap { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; }
+    footer .built { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/" aria-label="Toxify, início">
+        <img src="/favicon.svg" width="30" height="30" alt="" />
+        Toxify
+      </a>
+      <nav>
+        <a class="hide-sm" href="#recursos">Recursos</a>
+        <a class="hide-sm" href="#instalar">Como instalar</a>
+        <a href="https://github.com/Tox1469/toxify">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="hero">
+        <svg class="curves" viewBox="0 0 600 260" aria-hidden="true">
+          <path class="out" d="M40 40 C 240 40, 360 220, 560 220" />
+          <path d="M40 220 C 240 220, 360 40, 560 40" />
+        </svg>
+        <h1>Suas músicas em FLAC, tocadas do jeito que foram gravadas.</h1>
+        <p class="lead">O Toxify é um player para Windows feito para quem tem a própria biblioteca. Decodifica FLAC e hi-res sem perder nada, mostra a letra com a tradução embaixo de cada linha e monta mixes com o que você mais ouve.</p>
+        <div class="cta">
+          <a class="download" id="download" href="https://github.com/Tox1469/toxify/releases/latest/download/Toxify-Setup.exe">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Baixar para Windows
+          </a>
+          <div class="meta">
+            <strong>Versão 0.1.0</strong> · Windows 10 e 11, 64 bits · 10 MB<br />
+            Gratuito e de código aberto. Não pede conta nem senha de administrador.
+          </div>
+        </div>
+        <p class="note-os">O Toxify é para Windows. Abra esta página no computador para baixar e instalar.</p>
+      </div>
+
+      <figure class="shot" style="margin-left:0;margin-right:0">
+        <img src="/toxify.webp" width="1440" height="900" alt="Tela do Toxify: biblioteca à esquerda, mixes no centro, letra com tradução à direita e a barra de reprodução tocando um FLAC 24 bits/96 kHz." />
+      </figure>
+
+      <section class="block" id="recursos">
+        <h2>O que ele faz</h2>
+        <dl class="features">
+          <dt>Som sem perda</dt>
+          <dd>O decodificador é conferido bit a bit contra o ffmpeg: o teste do projeto compara <b>68 milhões de amostras</b> de um FLAC 24 bits/96 kHz e todas batem. No modo exclusivo, o som vai direto para a placa, sem passar pelo mixer do Windows, e a taxa troca a cada música.</dd>
+
+          <dt>Crossfade que respeita o álbum</dt>
+          <dd>Faixas coladas no disco, como em álbum ao vivo, tocam emendadas, sem pausa. Nas outras, a transição começa onde o som termina, não onde o arquivo termina, e pula o silêncio do começo da próxima.</dd>
+
+          <dt>Letra com tradução</dt>
+          <dd>Letra sincronizada com a música, com a tradução em português embaixo de cada linha. Também aparece em tela cheia.</dd>
+
+          <dt>Mixes do seu gosto</dt>
+          <dd>Mixes por gênero, década e artista, montados com o que você ouve até o fim e o que você pula. O cálculo é feito no seu computador; nada sai dele.</dd>
+
+          <dt>Editor de informações</dt>
+          <dd>Corrige título, artista, álbum, ano, faixa e gênero direto no arquivo. Cada gravação é feita numa cópia, conferida para garantir que o áudio continua idêntico e só então substitui o original. Dá para desfazer.</dd>
+
+          <dt>Biblioteca arrumada</dt>
+          <dd>Encontra artista escrito de dois jeitos, nome de site colado no título e CDs do mesmo álbum aparecendo separados, e mostra o que vai mudar antes de aplicar.</dd>
+
+          <dt>Windows e Discord</dt>
+          <dd>Funciona com as teclas de mídia do teclado e com os controles do Windows, e mostra "Ouvindo Toxify" no seu perfil do Discord. Tudo dá para desligar.</dd>
+        </dl>
+      </section>
+
+      <section class="block" id="instalar">
+        <h2>Como instalar</h2>
+        <ol class="steps">
+          <li>
+            <h3>Baixe o instalador</h3>
+            <p>O arquivo <code>Toxify-Setup.exe</code> tem cerca de 10 MB. Abra quando terminar de baixar.</p>
+          </li>
+          <li>
+            <h3>Confirme no Windows</h3>
+            <p>O instalador ainda não tem assinatura digital. Se aparecer "O Windows protegeu o computador", clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</p>
+          </li>
+          <li>
+            <h3>Abra e escute</h3>
+            <p>O Toxify procura músicas na pasta Músicas do Windows. Se as suas estão em outro lugar, escolha a pasta em <b>Configurações</b>.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="block" id="codigo">
+        <h2>Código aberto</h2>
+        <div class="open">
+          <div>
+            <p>O código do Toxify está no GitHub, sob a licença MIT: dá para ler, compilar e modificar. Para desinstalar, use <b style="color:var(--text);font-weight:600">Configurações &gt; Aplicativos &gt; Aplicativos instalados</b>, como qualquer programa.</p>
+            <p>Letras vêm do LRCLIB, fotos de artista do Deezer e traduções do Google Tradutor. Nenhum deles pede conta, e o player funciona sem internet.</p>
+          </div>
+          <div class="links">
+            <a class="btn" href="https://github.com/Tox1469/toxify">Ver no GitHub</a>
+            <a class="btn" href="https://github.com/Tox1469/toxify/releases">Versões</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Toxify 0.1.0 · Licença MIT</span>
+      <a class="built" href="https://tox.dev.br">Built by Tox</a>
+    </div>
+  </footer>
+
+<script>
+  // Quem abre o link no celular (o caso comum quando chega pelo WhatsApp) fica sabendo que é para o PC.
+  if (!/Windows/i.test(navigator.userAgent)) document.body.classList.add("not-windows");
+</script>
+</body>
+</html>
