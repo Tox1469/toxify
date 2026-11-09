@@ -1,4 +1,5 @@
 import type { Change, Track } from "./api";
+import { dec, LOCALE, t } from "./i18n";
 
 export type Album = {
   key: string;
@@ -201,8 +202,8 @@ export function buildLibrary(tracks: Track[], genreOverrides: Record<string, str
     const best = ts.reduce((m, t) => (t.bits > m.bits || (t.bits === m.bits && t.rate > m.rate) ? t : m), ts[0]);
     albums.push({
       key,
-      title: mostCommon(ts.map((t) => t.album)) || "Sem álbum",
-      artist: artists.join(", ") || "Artista desconhecido",
+      title: mostCommon(ts.map((t) => t.album)) || t("Sem álbum"),
+      artist: artists.join(", ") || t("Artista desconhecido"),
       artistKey: key.split("|")[0],
       artists,
       year: Math.max(...ts.map((t) => t.year)),
@@ -216,7 +217,7 @@ export function buildLibrary(tracks: Track[], genreOverrides: Record<string, str
       genre: null,
     });
   }
-  albums.sort((a, b) => a.title.localeCompare(b.title, "pt"));
+  albums.sort((a, b) => a.title.localeCompare(b.title, LOCALE));
   const albumByKey = new Map(albums.map((a) => [a.key, a]));
 
   const artistMap = new Map<string, Artist>();
@@ -282,7 +283,7 @@ export function buildLibrary(tracks: Track[], genreOverrides: Record<string, str
   }
   for (const al of albums) al.genre = mostCommon(al.tracks.map((t) => genreOf.get(t.id)).filter((x): x is string => !!x)) || null;
 
-  const artists = [...artistMap.values()].sort((a, b) => a.name.localeCompare(b.name, "pt"));
+  const artists = [...artistMap.values()].sort((a, b) => a.name.localeCompare(b.name, LOCALE));
   return { tracks, byId, albums, albumByKey, artists, artistByKey: artistMap, genreOf };
 }
 
@@ -303,7 +304,7 @@ export const fmtLong = (s: number) => {
 
 export const khz = (rate: number) => {
   const k = rate / 1000;
-  return Number.isInteger(k) ? `${k}` : k.toFixed(1).replace(".", ",");
+  return Number.isInteger(k) ? `${k}` : dec(k.toFixed(1));
 };
 
 /** "24/96", "16/44,1". */
@@ -311,7 +312,11 @@ export const quality = (bits: number, rate: number) => (bits ? `${bits}/${khz(ra
 
 export const isHiRes = (bits: number, rate: number) => bits >= 24 && rate > 48000;
 
-export const plural = (n: number, um: string, varios: string) => `${n.toLocaleString("pt-BR")} ${n === 1 ? um : varios}`;
+/** plural(3, t("música"), t("músicas")) → "3 músicas" */
+export const plural = (n: number, um: string, varios: string) => `${n.toLocaleString(LOCALE)} ${n === 1 ? um : varios}`;
+
+/** Rótulo do gênero na tela. A chave salva (genres.json, mixes) continua sendo o nome em português. */
+export const genreLabel = (g: string) => t(g);
 
 // ---------------------------------------------------------------- mixes (feitos pra você)
 
@@ -417,7 +422,7 @@ function topArtists(lib: Library, ts: Track[]) {
 }
 
 function line(names: string[]) {
-  return names.length > 3 ? `${names.slice(0, 3).join(", ")} e mais` : names.join(", ");
+  return names.length > 3 ? t("{names} e mais", { names: names.slice(0, 3).join(", ") }) : names.join(", ");
 }
 
 export function buildMixes(lib: Library, plays: Plays, likes: Set<number>, day = new Date().toISOString().slice(0, 10)): Mix[] {
@@ -452,7 +457,7 @@ export function buildMixes(lib: Library, plays: Plays, likes: Set<number>, day =
   // 1. Um mix por tipo de música (e pelos subtipos que você mais ouve), na ordem do que você mais curte.
   const mixGenre = ({ g, ts }: { g: string; ts: Track[] }) => {
     const cap = Math.max(6, Math.ceil(60 / artistsIn(ts)) + 2);
-    add(`genero:${g}`, `Mix ${g}`, pickMix(ts, score, 60, `${day}:${g}`, 3, cap));
+    add(`genero:${g}`, t("Mix {g}", { g: genreLabel(g) }), pickMix(ts, score, 60, `${day}:${g}`, 3, cap));
   };
   genreRank.slice(0, 7).forEach(mixGenre);
   subRank.slice(0, 5).forEach(mixGenre);
@@ -461,11 +466,11 @@ export function buildMixes(lib: Library, plays: Plays, likes: Set<number>, day =
   const played = lib.tracks.filter((t) => (plays.get(t.id)?.count ?? 0) > 0);
   if (played.length >= 8) {
     const top = [...played].sort((a, b) => plays.get(b.id)!.count - plays.get(a.id)!.count || plays.get(b.id)!.last - plays.get(a.id)!.last).slice(0, 50);
-    add("top", "Suas mais tocadas", top, "As que você mais ouviu desde sempre", null);
+    add("top", t("Suas mais tocadas"), top, t("As que você mais ouviu desde sempre"), null);
   }
   const recent = lib.tracks.filter((t) => (plays.get(t.id)?.recent ?? 0) > 0);
   if (recent.length >= 8) {
-    add("repeat", "Na repetição", [...recent].sort((a, b) => plays.get(b.id)!.recent - plays.get(a.id)!.recent).slice(0, 30), "O que você mais ouviu no último mês");
+    add("repeat", t("Na repetição"), [...recent].sort((a, b) => plays.get(b.id)!.recent - plays.get(a.id)!.recent).slice(0, 30), t("O que você mais ouviu no último mês"));
   }
 
   // 3. Mix de artista: ele e quem é do mesmo tipo e da mesma época.
@@ -487,14 +492,14 @@ export function buildMixes(lib: Library, plays: Plays, likes: Set<number>, day =
       if (others[2 * i]) mixed.push(others[2 * i]);
       if (others[2 * i + 1]) mixed.push(others[2 * i + 1]);
     }
-    add(`artista:${a.key}`, `Mix de ${a.name}`, mixed, `${a.name}, ${line(topArtists(lib, others).slice(0, 2))} e parecidos`, a.name);
+    add(`artista:${a.key}`, t("Mix de {name}", { name: a.name }), mixed, t("{names} e parecidos", { names: [a.name, ...topArtists(lib, others).slice(0, 2)].join(", ") }), a.name);
   }
 
   // 4. Coisa sua que você ainda nem ouviu, puxando pros tipos que você mais curte.
   const genreWeight = new Map(genreRank.map(({ g, s, ts }) => [g, s / ts.length]));
   const unheard = lib.tracks.filter((t) => !plays.has(t.id));
   if (unheard.length >= 10 && played.length >= 8) {
-    add("nunca", "Ainda não ouviu", pickMix(unheard, (t) => genreWeight.get(mainGenre(lib.genreOf.get(t.id) ?? "")) ?? 0.5, 50, `${day}:nunca`), "Da sua biblioteca, do jeito que você curte");
+    add("nunca", t("Ainda não ouviu"), pickMix(unheard, (t) => genreWeight.get(mainGenre(lib.genreOf.get(t.id) ?? "")) ?? 0.5, 50, `${day}:nunca`), t("Da sua biblioteca, do jeito que você curte"));
   }
 
   // 5. Pra redescobrir: curtia, mas faz tempo que não toca.
@@ -503,19 +508,19 @@ export function buildMixes(lib: Library, plays: Plays, likes: Set<number>, day =
     const p = plays.get(t.id);
     return (p && p.count >= 2 && now - p.last > 60 * 86400) || (likes.has(t.id) && (!p || now - p.last > 60 * 86400));
   });
-  if (old.length >= 8) add("redescobrir", "Pra redescobrir", pickMix(old, score, 50, `${day}:old`), "Você curtia, faz tempo que não toca");
+  if (old.length >= 8) add("redescobrir", t("Pra redescobrir"), pickMix(old, score, 50, `${day}:old`), t("Você curtia, faz tempo que não toca"));
 
   // 6. Por década.
   const decades = new Map<number, Track[]>();
   for (const t of lib.tracks) if (t.year > 1900) decades.set(Math.floor(t.year / 10) * 10, [...(decades.get(Math.floor(t.year / 10) * 10) ?? []), t]);
   for (const [d, ts] of [...decades.entries()].sort((a, b) => a[0] - b[0])) {
     if (ts.length < 20) continue;
-    add(`decada:${d}`, d >= 2000 ? `Anos ${d}` : `Anos ${String(d).slice(2)}`, pickMix(ts, score, 60, `${day}:${d}`, 2, 4));
+    add(`decada:${d}`, t("Anos {d}", { d: d >= 2000 ? d : String(d).slice(2) }), pickMix(ts, score, 60, `${day}:${d}`, 2, 4));
   }
 
   // 7. Alta resolução.
   const hires = lib.tracks.filter((t) => isHiRes(t.bits, t.rate));
-  if (hires.length >= 15) add("hires", "Hi-Res de verdade", pickMix(hires, score, 60, `${day}:hires`, 2, 5), "Só 24 bit acima de 48 kHz", null);
+  if (hires.length >= 15) add("hires", t("Hi-Res de verdade"), pickMix(hires, score, 60, `${day}:hires`, 2, 5), t("Só 24 bit acima de 48 kHz"), null);
 
   return out;
 }
@@ -586,10 +591,14 @@ export function suggestions(lib: Library): Suggestion[] {
     const wrong = variants.slice(1).flatMap(([, ts]) => ts);
     out.push({
       id: `grafia:${k}`,
-      title: `Juntar as grafias de "${to}"`,
-      detail: `O artista aparece escrito de ${m.size} jeitos: ${variants.map(([s, ts]) => `"${s}" (${ts.length})`).join(", ")}. Deixa tudo como "${to}".`,
+      title: t('Juntar as grafias de "{name}"', { name: to }),
+      detail: t('O artista aparece escrito de {n} jeitos: {list}. Deixa tudo como "{name}".', {
+        n: m.size,
+        list: variants.map(([s, ts]) => `"${s}" (${ts.length})`).join(", "),
+        name: to,
+      }),
       changes: wrong.map((t) => ({ id: t.id, field: "album_artist", value: to })),
-      preview: variants.slice(1).map(([s, ts]) => ({ label: `${ts.length} faixas`, from: s, to })),
+      preview: variants.slice(1).map(([s, ts]) => ({ label: plural(ts.length, t("faixa"), t("faixas")), from: s, to })),
     });
   }
 
@@ -610,10 +619,12 @@ export function suggestions(lib: Library): Suggestion[] {
     if (junk && trackArtist) {
       out.push({
         id: `lixo:${al.key}`,
-        title: `Corrigir o artista de "${al.title}"`,
-        detail: aa ? `Está como "${aa}", que não é artista. As faixas são de "${trackArtist}".` : `O álbum está sem artista. As faixas são de "${trackArtist}".`,
+        title: t('Corrigir o artista de "{album}"', { album: al.title }),
+        detail: aa
+          ? t('Está como "{wrong}", que não é artista. As faixas são de "{artist}".', { wrong: aa, artist: trackArtist })
+          : t('O álbum está sem artista. As faixas são de "{artist}".', { artist: trackArtist }),
         changes: al.tracks.map((t) => ({ id: t.id, field: "album_artist", value: trackArtist })),
-        preview: [{ label: `${al.tracks.length} faixas`, from: aa || "(vazio)", to: trackArtist }],
+        preview: [{ label: plural(al.tracks.length, t("faixa"), t("faixas")), from: aa || t("(vazio)"), to: trackArtist }],
       });
     } else if (aa && !aa.includes(";") && /,\s+/.test(aa)) {
       // 3. Vários nomes numa tag só ("Madvillain, Madlib, MF DOOM"): vira lista separada,
@@ -624,10 +635,13 @@ export function suggestions(lib: Library): Suggestion[] {
         const to = parts.join("; ");
         out.push({
           id: `varios:${al.key}`,
-          title: `Separar os artistas de "${al.title}"`,
-          detail: `O artista do álbum está como "${aa}", tudo junto. Separando, o álbum aparece na página de ${parts.join(", ").replace(/, ([^,]*)$/, " e $1")}.`,
+          title: t('Separar os artistas de "{album}"', { album: al.title }),
+          detail: t('O artista do álbum está como "{wrong}", tudo junto. Separando, o álbum aparece na página de {names}.', {
+            wrong: aa,
+            names: parts.join(", ").replace(/, ([^,]*)$/, ` ${t("e")} $1`),
+          }),
           changes: al.tracks.map((t) => ({ id: t.id, field: "album_artist", value: to })),
-          preview: [{ label: `${al.tracks.length} faixas`, from: aa, to: parts.join(" · ") }],
+          preview: [{ label: plural(al.tracks.length, t("faixa"), t("faixas")), from: aa, to: parts.join(" · ") }],
         });
       }
     }
@@ -642,12 +656,12 @@ export function suggestions(lib: Library): Suggestion[] {
         if (disc) al.tracks.forEach((t) => changes.push({ id: t.id, field: "disc", value: disc }));
         out.push({
           id: `titulo:${al.key}`,
-          title: `Limpar o nome do álbum "${clean}"`,
+          title: t('Limpar o nome do álbum "{album}"', { album: clean }),
           detail: disc
-            ? `O nome tem lixo do arquivo baixado e o número do CD. Fica "${clean}", disco ${disc}, e os CDs viram um álbum só.`
-            : `O nome tem lixo do arquivo baixado. Fica só "${clean}".`,
+            ? t('O nome tem lixo do arquivo baixado e o número do CD. Fica "{album}", disco {disc}, e os CDs viram um álbum só.', { album: clean, disc })
+            : t('O nome tem lixo do arquivo baixado. Fica só "{album}".', { album: clean }),
           changes,
-          preview: [{ label: `${al.tracks.length} faixas`, from: al.title, to: disc ? `${clean} (disco ${disc})` : clean }],
+          preview: [{ label: plural(al.tracks.length, t("faixa"), t("faixas")), from: al.title, to: disc ? t("{album} (disco {disc})", { album: clean, disc }) : clean }],
         });
       }
     }

@@ -1,58 +1,72 @@
 # Toxify
 
-Player de música para Windows, feito para quem tem a própria biblioteca em FLAC.
+**English** · [Português](README.pt-BR.md)
 
-Toca FLAC e hi-res até 192 kHz com decodificação sem perda, mostra a letra sincronizada com a tradução embaixo de cada linha e monta mixes a partir do que você ouve. Tudo fica no seu computador: não tem conta, não tem login, não tem anúncio.
+A music player for Windows, made for people who keep their own FLAC library.
 
-**[Baixar o instalador](https://github.com/Tox1469/toxify/releases/latest/download/Toxify-Setup.exe)** · Windows 10 e 11, 64 bits
+Plays FLAC and hi-res up to 192 kHz with lossless decoding, shows synced lyrics with a translation under each line, and builds mixes from what you listen to. Everything stays on your computer: no account, no login, no ads.
 
-O instalador põe o Toxify só para o seu usuário, em `%LOCALAPPDATA%\Programs\Toxify`, sem pedir senha de administrador. Ele ainda não tem assinatura digital, então o Windows pode mostrar "O Windows protegeu o computador": clique em **Mais informações** e depois em **Executar assim mesmo**. Para desinstalar, use **Configurações > Aplicativos > Aplicativos instalados**.
+**[Download the installer](https://github.com/Tox1469/toxify/releases/latest/download/Toxify-Setup.exe)** · Windows 10 and 11, 64-bit
 
-## O que ele faz
+![Toxify: library on the left, mixes in the middle, synced lyrics on the right](site/toxify.webp)
 
-- **Som sem perda.** O decodificador é conferido bit a bit contra o ffmpeg (o teste abaixo compara 68 milhões de amostras de um FLAC 24 bits/96 kHz). No modo exclusivo, o som vai direto para a placa, sem passar pelo mixer do Windows, e a taxa troca a cada música.
-- **Crossfade que respeita o álbum.** Faixas coladas no disco (ao vivo, álbum conceitual) tocam emendadas, sem pausa. Nas outras, a transição começa onde o som termina, não onde o arquivo termina, e pula o silêncio do começo da próxima.
-- **Letra com tradução.** Letra sincronizada do LRCLIB, com a tradução em português embaixo de cada linha.
-- **Mixes do seu gosto.** Por gênero, década e artista, montados com o que você ouve até o fim e o que você pula. O cálculo é feito no seu computador.
-- **Editor de informações.** Título, artista, álbum, ano, faixa e gênero gravados direto no arquivo. Cada gravação é feita numa cópia, conferida (o áudio precisa continuar idêntico) e só então troca o original. Dá para desfazer.
-- **Biblioteca arrumada.** Encontra artista escrito de dois jeitos, nome de site no título e CDs separados do mesmo álbum.
-- **Windows e Discord.** Teclas de mídia, controles no painel do Windows e "Ouvindo Toxify" no perfil do Discord (dá para desligar).
+The installer puts Toxify in your user folder (`%LOCALAPPDATA%\Programs\Toxify`) without asking for an administrator password. It isn't code-signed yet, so Windows may show "Windows protected your PC": click **More info**, then **Run anyway**. To uninstall, use **Settings > Apps > Installed apps**.
 
-## Serviços online
+### Verify the installer
 
-Nenhum precisa de conta e o player funciona sem internet. Tudo o que vem de fora fica em cache no disco.
+Every release is built on GitHub Actions straight from this repository's source and ships with a signed build provenance attestation. With the [GitHub CLI](https://cli.github.com):
 
-| Serviço | Para quê |
+```sh
+gh attestation verify Toxify-Setup.exe --repo Tox1469/toxify
+```
+
+The SHA-256 and the build log are on each [release page](https://github.com/Tox1469/toxify/releases). Or skip the installer and build it yourself (see below).
+
+## What it does
+
+- **Lossless playback.** The decoder is checked bit by bit against ffmpeg (the test below compares 68 million samples of a 24-bit/96 kHz FLAC). In exclusive mode the audio goes straight to the sound card, bypassing the Windows mixer, and the sample rate switches with each track.
+- **Crossfade that respects the album.** Gapless tracks (live albums, concept albums) play back to back with no pause. Everywhere else the transition starts where the sound ends, not where the file ends, and skips the silence at the start of the next track.
+- **Lyrics with translation.** Synced lyrics from LRCLIB, with a translation under each line in the app's language (English or Portuguese).
+- **Mixes that learn your taste.** By genre, decade and artist, built from what you play to the end and what you skip. All computed on your machine.
+- **Tag editor.** Title, artist, album, year, track and genre written straight to the file. Each save goes to a copy first, gets checked (the audio must stay identical) and only then replaces the original. You can undo.
+- **Library cleanup.** Finds the same artist spelled two ways, site names stuck in titles, and discs of the same album showing up apart.
+- **Windows and Discord.** Media keys, the Windows media controls, and "Listening to Toxify" on your Discord profile (can be turned off).
+
+## Online services
+
+None of them needs an account, and the player works offline. Everything fetched is cached on disk.
+
+| Service | Used for |
 | --- | --- |
-| [LRCLIB](https://lrclib.net) | Letras sincronizadas |
-| Google Tradutor | Tradução das letras (desligável nas Configurações) |
-| [Deezer](https://www.deezer.com) | Foto do artista, capa que falta no arquivo e músicas populares |
-| Discord | "Ouvindo Toxify" no perfil (desligável) |
+| [LRCLIB](https://lrclib.net) | Synced lyrics |
+| Google Translate | Lyrics translation (can be turned off in Settings) |
+| [Deezer](https://www.deezer.com) | Artist photos, missing covers and popular tracks |
+| Discord | "Listening to Toxify" on your profile (can be turned off) |
 
-## Por dentro
+## Under the hood
 
-- **Tela:** Tauri 2 + React + Vite (`src/`)
-- **Motor:** Rust (`src-tauri/src/`). [symphonia](https://github.com/pdeljanov/Symphonia) decodifica, WASAPI toca, [rubato](https://github.com/HEnquist/rubato) converte a taxa só quando precisa, [lofty](https://github.com/Serial-ATA/lofty-rs) lê e grava tags, SQLite guarda a biblioteca.
-- **Velocidade e tom independentes:** [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch) (MIT), em `src-tauri/vendor/signalsmith`.
-- **Instalador:** `src-tauri/setup/`, uma janela própria em Tauri com o `Toxify.exe` comprimido dentro.
+- **UI:** Tauri 2 + React + Vite (`src/`)
+- **Engine:** Rust (`src-tauri/src/`). [symphonia](https://github.com/pdeljanov/Symphonia) decodes, WASAPI plays, [rubato](https://github.com/HEnquist/rubato) resamples only when needed, [lofty](https://github.com/Serial-ATA/lofty-rs) reads and writes tags, SQLite stores the library.
+- **Independent speed and pitch:** [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch) (MIT), in `src-tauri/vendor/signalsmith`.
+- **Installer:** `src-tauri/setup/`, its own Tauri window with the compressed `Toxify.exe` inside.
 
-## Rodar a partir do código
+## Build from source
 
-Precisa de Node 22+, Rust estável e o WebView2 (já vem no Windows 11).
+You need Node 22+, stable Rust and WebView2 (already in Windows 11).
 
 ```sh
 npm install
-npm run tauri dev       # abre o app em modo de desenvolvimento
-npm run release         # gera release/Toxify-Setup.exe
+npm run tauri dev       # opens the app in development mode
+npm run release         # builds release/Toxify-Setup.exe
 ```
 
-Teste de fidelidade do decodificador, com qualquer FLAC seu e o ffmpeg no PATH:
+Decoder fidelity test, with any FLAC of yours and ffmpeg on the PATH:
 
 ```sh
 cd src-tauri
-TOXIFY_TEST_FLAC="C:\caminho\musica.flac" cargo test --release --lib bit_perfect -- --nocapture
+TOXIFY_TEST_FLAC="C:\path\song.flac" cargo test --release --lib bit_perfect -- --nocapture
 ```
 
-## Licença
+## License
 
 [MIT](LICENSE).

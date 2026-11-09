@@ -110,6 +110,34 @@
   const { listen } = window.__TAURI__.event;
   const win = window.__TAURI__.window.getCurrentWindow();
 
+  // Idioma do Windows: português fica como está, qualquer outro vira inglês. Os passos que vêm do
+  // Rust ("Copiando o Toxify"...) são traduzidos aqui na exibição.
+  const EN = !(navigator.language || "").toLowerCase().startsWith("pt");
+  const T = {
+    "Instalar": "Install", "Reinstalar": "Reinstall", "Atualizar": "Update",
+    "Opções de instalação": "Install options", "Alterar": "Change", "Pasta": "Folder",
+    "Criar atalho na Área de Trabalho": "Create a desktop shortcut", "Voltar": "Back",
+    "Desinstalar o Toxify": "Uninstall Toxify", "Instalar o Toxify": "Install Toxify",
+    "O programa sai deste computador. Suas músicas continuam exatamente onde estão.": "The app is removed from this computer. Your music stays exactly where it is.",
+    "Apagar também playlists, curtidas e preferências": "Also delete playlists, likes and preferences",
+    "Cancelar": "Cancel", "Desinstalar": "Uninstall", "Preparando": "Preparing",
+    "Desinstalando o Toxify": "Uninstalling Toxify", "Atualizando o Toxify": "Updating Toxify", "Instalando o Toxify": "Installing Toxify",
+    "O Toxify foi desinstalado": "Toxify was uninstalled",
+    "O programa e os dados dele saíram deste computador. Suas músicas ficaram onde estavam.": "The app and its data were removed from this computer. Your music stayed where it was.",
+    "O programa saiu deste computador. Suas playlists e preferências ficaram guardadas, caso você volte.": "The app was removed from this computer. Your playlists and preferences were kept in case you come back.",
+    "O Toxify foi atualizado": "Toxify was updated", "O Toxify está instalado": "Toxify is installed",
+    "Ele já está no menu Iniciar e na Área de Trabalho.": "It's in the Start menu and on the desktop.",
+    "Ele já está no menu Iniciar.": "It's in the Start menu.",
+    "Fechar": "Close", "Abrir o Toxify": "Open Toxify",
+    "Não foi possível desinstalar": "Couldn't uninstall", "Não foi possível instalar": "Couldn't install", "Tentar de novo": "Try again",
+    "Minimizar": "Minimize",
+    "Copiando o Toxify": "Copying Toxify", "Criando os atalhos": "Creating shortcuts",
+    "Registrando em Aplicativos instalados": "Registering in Installed apps", "Pronto": "Done",
+    "Removendo o Toxify": "Removing Toxify", "Removendo os atalhos": "Removing shortcuts",
+    "Apagando playlists e preferências": "Deleting playlists and preferences", "Fechando o Toxify": "Closing Toxify",
+  };
+  const L = (s) => (EN && T[s]) || s;
+
   const $ = (id) => document.getElementById(id);
   const stage = $("stage");
   const paths = [...stage.querySelectorAll("path")];
@@ -165,7 +193,7 @@
     for (const c of kids.flat()) if (c != null && c !== false) n.append(c);
     return n;
   }
-  const btn = (text, on, cls = "btn") => el("button", { class: cls, on }, text);
+  const btn = (text, on, cls = "btn") => el("button", { class: cls, on }, L(text));
   const tick = () => {
     const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     s.setAttribute("width", "12"); s.setAttribute("height", "12"); s.setAttribute("viewBox", "0 0 12 12");
@@ -176,7 +204,7 @@
     const input = el("input", { type: "checkbox" });
     input.checked = opts[key];
     input.addEventListener("change", () => (opts[key] = input.checked));
-    return el("label", { class: "check" }, input, el("span", { class: "box" }, tick()), text);
+    return el("label", { class: "check" }, input, el("span", { class: "box" }, tick()), L(text));
   };
 
   function show(main, left, right) {
@@ -194,15 +222,18 @@
   function welcome() {
     play();
     const v = verb();
-    const sub =
-      v === "Atualizar"
+    const sub = EN
+      ? v === "Atualizar"
+        ? `You have ${info.installed ? "version " + info.installed : "an older version"} and this is ${info.version}. Playlists, likes and preferences stay as they are.`
+        : "A music player for people with their own library. FLAC and hi-res played exactly as they were recorded."
+      : v === "Atualizar"
         ? `Você tem ${info.installed ? "a versão " + info.installed : "uma versão anterior"} e esta é a ${info.version}. Playlists, curtidas e preferências continuam como estão.`
         : "Player de música para quem tem a própria biblioteca. FLAC e hi-res tocados do jeito que foram gravados.";
     const meta = info.running
-      ? el("p", { class: "meta warn" }, "O Toxify está aberto e vai fechar sozinho durante a instalação.")
-      : el("p", { class: "meta" }, `Versão ${info.version} · Instala só para você, sem senha de administrador.`);
+      ? el("p", { class: "meta warn" }, EN ? "Toxify is open and will close by itself during the install." : "O Toxify está aberto e vai fechar sozinho durante a instalação.")
+      : el("p", { class: "meta" }, EN ? `Version ${info.version} · Installs just for you, no administrator password.` : `Versão ${info.version} · Instala só para você, sem senha de administrador.`);
     show(
-      [el("h1", {}, `${v} o Toxify`), el("p", { class: "sub" }, sub), meta],
+      [el("h1", {}, EN ? `${L(v)} Toxify` : `${v} o Toxify`), el("p", { class: "sub" }, sub), meta],
       btn("Opções de instalação", options, "link"),
       btn(v, () => run(), "btn primary"),
     );
@@ -220,8 +251,8 @@
     }, "btn small");
     show(
       [
-        el("h1", {}, "Opções de instalação"),
-        el("label", { class: "title" }, "Pasta"),
+        el("h1", {}, L("Opções de instalação")),
+        el("label", { class: "title" }, L("Pasta")),
         el("div", { class: "path-row" }, path, change),
         check("Criar atalho na Área de Trabalho", "desktop"),
       ],
@@ -234,8 +265,8 @@
     play();
     show(
       [
-        el("h1", {}, "Desinstalar o Toxify"),
-        el("p", { class: "sub" }, "O programa sai deste computador. Suas músicas continuam exatamente onde estão."),
+        el("h1", {}, L("Desinstalar o Toxify")),
+        el("p", { class: "sub" }, L("O programa sai deste computador. Suas músicas continuam exatamente onde estão.")),
         check("Apagar também playlists, curtidas e preferências", "wipe"),
       ],
       el("span"),
@@ -252,15 +283,15 @@
     stop();
     stage.classList.add("live");
 
-    const label = el("p", { class: "sub" }, "Preparando");
+    const label = el("p", { class: "sub" }, L("Preparando"));
     const pct = el("span", { class: "pct" }, "0%");
-    show([el("h1", {}, un ? "Desinstalando o Toxify" : v === "Atualizar" ? "Atualizando o Toxify" : "Instalando o Toxify"), label], null, pct);
+    show([el("h1", {}, L(un ? "Desinstalando o Toxify" : v === "Atualizar" ? "Atualizando o Toxify" : "Instalando o Toxify")), label], null, pct);
 
     // O trabalho de verdade leva menos de um segundo; a barra anda no ritmo dela pra dar pra ler.
     let target = 0, shown = 0, finished = false;
     const off = await listen("step", (e) => {
       target = e.payload.pct;
-      label.textContent = e.payload.label;
+      label.textContent = L(e.payload.label);
     });
     const anim = new Promise((resolve) => {
       const frame = () => {
@@ -297,7 +328,7 @@
     if (un) {
       draw(0);
       show(
-        [el("h1", {}, "O Toxify foi desinstalado"), el("p", { class: "sub" }, opts.wipe ? "O programa e os dados dele saíram deste computador. Suas músicas ficaram onde estavam." : "O programa saiu deste computador. Suas playlists e preferências ficaram guardadas, caso você volte.")],
+        [el("h1", {}, L("O Toxify foi desinstalado")), el("p", { class: "sub" }, L(opts.wipe ? "O programa e os dados dele saíram deste computador. Suas músicas ficaram onde estavam." : "O programa saiu deste computador. Suas playlists e preferências ficaram guardadas, caso você volte."))],
         el("span"),
         btn("Fechar", () => win.close(), "btn primary"),
       );
@@ -307,8 +338,8 @@
     play();
     show(
       [
-        el("h1", {}, v === "Atualizar" ? "O Toxify foi atualizado" : "O Toxify está instalado"),
-        el("p", { class: "sub" }, opts.desktop ? "Ele já está no menu Iniciar e na Área de Trabalho." : "Ele já está no menu Iniciar."),
+        el("h1", {}, L(v === "Atualizar" ? "O Toxify foi atualizado" : "O Toxify está instalado")),
+        el("p", { class: "sub" }, L(opts.desktop ? "Ele já está no menu Iniciar e na Área de Trabalho." : "Ele já está no menu Iniciar.")),
       ],
       btn("Fechar", () => win.close(), "link"),
       btn("Abrir o Toxify", async () => {
@@ -324,7 +355,7 @@
   function failed(msg, un) {
     stop();
     show(
-      [el("h1", {}, un ? "Não foi possível desinstalar" : "Não foi possível instalar"), el("p", { class: "sub err" }, msg)],
+      [el("h1", {}, L(un ? "Não foi possível desinstalar" : "Não foi possível instalar")), el("p", { class: "sub err" }, msg)],
       btn("Fechar", () => win.close(), "link"),
       btn("Tentar de novo", () => run(), "btn primary"),
     );
@@ -339,9 +370,16 @@
   });
   document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+  if (EN) {
+    document.documentElement.lang = "en";
+    $("min").setAttribute("aria-label", L("Minimizar"));
+    $("close").setAttribute("aria-label", L("Fechar"));
+  }
+
   (async () => {
     draw(0);
     info = await invoke("info");
+    if (EN) win.setTitle(L(info.uninstall ? "Desinstalar o Toxify" : "Instalar o Toxify")).catch(() => {});
     opts.dir = info.dir;
     requestAnimationFrame(() => draw(1));
     if (info.uninstall) uninstallAsk();

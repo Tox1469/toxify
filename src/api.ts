@@ -54,6 +54,8 @@ export type Lyrics = {
   source: string;
   lang: string | null;
   translation: string[] | null;
+  /** Idioma pra onde a tradução foi feita. */
+  to?: string | null;
 };
 
 export type Settings = {
@@ -118,7 +120,8 @@ export const api = {
   /** Razão do tom: 1.0 = original, 2^(semitons/12). Não muda a velocidade. */
   setPitch: (v: number) => invoke("set_pitch", { v }),
 
-  lyrics: (id: number) => invoke<Lyrics | null>("lyrics", { id }),
+  /** `to`: idioma da tradução ("pt", "en"). */
+  lyrics: (id: number, to: string) => invoke<Lyrics | null>("lyrics", { id, to }),
   saveTags: (changes: Change[]) => invoke<string[]>("save_tags", { changes }),
   undoTags: () => invoke<number>("undo_tags"),
   hasUndo: () => invoke<boolean>("has_undo"),

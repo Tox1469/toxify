@@ -364,19 +364,23 @@ fn set_exclusive(s: State<'_, App>, on: bool) {
 // ---------------------------------------------------------------- letra
 
 #[tauri::command]
-async fn lyrics(s: State<'_, App>, id: i64) -> R<Option<Lyrics>> {
+async fn lyrics(s: State<'_, App>, id: i64, to: Option<String>) -> R<Option<Lyrics>> {
     let Some(t) = s.lib.get(id) else { return Ok(None) };
     let online = s.online.clone();
     let translate = s.settings.lock().unwrap().translate;
+    let to = to.unwrap_or_else(|| "pt".into());
     let mut l = match online.lyrics(&t).await {
         Some(l) => l,
         None => return Ok(None),
     };
-    if translate && l.translation.is_none() && !l.lines.is_empty() {
+    // Tradução guardada em outro idioma (trocou o idioma do app): traduz de novo.
+    let stale = l.translation.is_none() || l.to.as_deref().unwrap_or("pt") != to;
+    if translate && stale && !l.lines.is_empty() {
         let texts: Vec<String> = l.lines.iter().map(|x| x.text.clone()).collect();
-        if let Some((lang, tr)) = online.translate(&texts).await {
+        if let Some((lang, tr)) = online.translate(&texts, &to).await {
             l.lang = Some(lang);
             l.translation = Some(tr);
+            l.to = Some(to);
             online.save_lyrics(&t, &l);
         }
     }

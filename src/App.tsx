@@ -1,8 +1,9 @@
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api, Track } from "./api";
 import { IBack, IForward, IHeart, IHome, ILibrary, ISearch, ISettings, IWand } from "./icons";
-import { showArtists, suggestions } from "./model";
+import { plural, showArtists, suggestions } from "./model";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LOCALE, t } from "./i18n";
 import { NowPlaying, PlayerBar, Stage, StageMode } from "./player";
 import { StoreProvider, useStore } from "./store";
 import { ArtistImage, ContextMenu, Cover, DRAG_TRACKS, Equalizer, Mosaic, ToastView } from "./ui";
@@ -164,15 +165,15 @@ function TopBar() {
   return (
     <div className="topbar">
       <div className="nav-btns">
-        <button className="round-btn" onClick={s.back} disabled={!s.canBack} aria-label="Voltar" title="Voltar">
+        <button className="round-btn" onClick={s.back} disabled={!s.canBack} aria-label={t("Voltar")} title={t("Voltar")}>
           <IBack size={18} />
         </button>
-        <button className="round-btn" onClick={s.forward} disabled={!s.canForward} aria-label="Avançar" title="Avançar">
+        <button className="round-btn" onClick={s.forward} disabled={!s.canForward} aria-label={t("Avançar")} title={t("Avançar")}>
           <IForward size={18} />
         </button>
       </div>
       <div className="top-center">
-        <button className={`round-btn home-btn ${s.route.v === "home" ? "on" : ""}`} onClick={() => s.go({ v: "home" })} aria-label="Início" title="Início">
+        <button className={`round-btn home-btn ${s.route.v === "home" ? "on" : ""}`} onClick={() => s.go({ v: "home" })} aria-label={t("Início")} title={t("Início")}>
           <IHome size={22} />
         </button>
         <label className="search" onClick={() => input.current?.focus()}>
@@ -180,14 +181,14 @@ function TopBar() {
           <input
             ref={input}
             value={q}
-            placeholder="O que você quer ouvir?"
+            placeholder={t("O que você quer ouvir?")}
             onChange={(e) => {
               setQ(e.target.value);
               s.go({ v: "search", q: e.target.value });
             }}
             onFocus={() => s.route.v !== "search" && s.go({ v: "search", q })}
             onKeyDown={(e) => e.key === "Escape" && (setQ(""), input.current?.blur())}
-            aria-label="Buscar"
+            aria-label={t("Buscar")}
           />
           <kbd>Ctrl K</kbd>
         </label>
@@ -228,13 +229,13 @@ function Sidebar() {
       for (const p of s.playlists) {
         const tracks = p.tracks.map((id) => s.lib.byId.get(id)).filter((t): t is Track => !!t);
         const at = Math.max(p.created, ...tracks.map((t) => s.plays.get(t.id)?.last ?? 0));
-        list.push({ kind: "playlist", key: String(p.id), id: p.id, name: p.name, sub: `Playlist · ${tracks.length} músicas`, at, tracks });
+        list.push({ kind: "playlist", key: String(p.id), id: p.id, name: p.name, sub: `${t("Playlist")} · ${plural(tracks.length, t("música"), t("músicas"))}`, at, tracks });
       }
     if (filter === "all" || filter === "artists")
-      for (const a of s.lib.artists) list.push({ kind: "artist", key: a.key, name: a.name, sub: "Artista", at: last.get("artist:" + a.key) ?? 0 });
+      for (const a of s.lib.artists) list.push({ kind: "artist", key: a.key, name: a.name, sub: t("Artista"), at: last.get("artist:" + a.key) ?? 0 });
     if (filter === "all" || filter === "albums")
-      for (const a of s.lib.albums) list.push({ kind: "album", key: a.key, name: a.title, sub: `Álbum · ${a.artist}`, at: last.get("album:" + a.key) ?? 0, cover: a.coverId });
-    return list.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name, "pt"));
+      for (const a of s.lib.albums) list.push({ kind: "album", key: a.key, name: a.title, sub: `${t("Álbum")} · ${a.artist}`, at: last.get("album:" + a.key) ?? 0, cover: a.coverId });
+    return list.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name, LOCALE));
   }, [s.lib, s.plays, s.playlists, filter]);
 
   const setF = (f: typeof filter) => {
@@ -271,16 +272,16 @@ function Sidebar() {
       <div className="sb-head">
         <button className="sb-title" onClick={() => s.go({ v: filter === "artists" ? "artists" : "albums" })}>
           <ILibrary size={22} />
-          Sua biblioteca
+          {t("Sua biblioteca")}
         </button>
-        <button className="sb-new" onClick={() => setCreating(true)} aria-label="Criar playlist" title="Criar playlist">
+        <button className="sb-new" onClick={() => setCreating(true)} aria-label={t("Criar playlist")} title={t("Criar playlist")}>
           +
         </button>
       </div>
       <div className="chips">
         {(["playlists", "albums", "artists"] as const).map((f) => (
           <button key={f} className={`chip ${filter === f ? "on" : ""}`} onClick={() => setF(f)}>
-            {{ playlists: "Playlists", albums: "Álbuns", artists: "Artistas" }[f]}
+            {{ playlists: t("Playlists"), albums: t("Álbuns"), artists: t("Artistas") }[f]}
           </button>
         ))}
       </div>
@@ -290,8 +291,10 @@ function Sidebar() {
             <IHeart size={18} />
           </div>
           <div className="sb-text">
-            <span className={`sb-name ${playingCtx === "liked" ? "accent" : ""}`}>Músicas Curtidas</span>
-            <span className="sb-sub">Playlist · {s.likes.size} músicas</span>
+            <span className={`sb-name ${playingCtx === "liked" ? "accent" : ""}`}>{t("Músicas Curtidas")}</span>
+            <span className="sb-sub">
+              {t("Playlist")} · {plural(s.likes.size, t("música"), t("músicas"))}
+            </span>
           </div>
           {playingCtx === "liked" && s.player?.playing && <Equalizer />}
         </div>
@@ -325,7 +328,7 @@ function Sidebar() {
       <div className="sb-foot">
         {s.scan && (
           <div className="sb-scan">
-            Lendo biblioteca… {s.scan.done} de {s.scan.total}
+            {t("Lendo biblioteca… {done} de {total}", { done: s.scan.done, total: s.scan.total })}
             <div className="bar">
               <i style={{ width: `${s.scan.total ? (s.scan.done / s.scan.total) * 100 : 0}%` }} />
             </div>
@@ -333,19 +336,19 @@ function Sidebar() {
         )}
         <button className={`sb-link ${s.route.v === "fix" ? "on" : ""}`} onClick={() => s.go({ v: "fix" })}>
           <IWand size={18} />
-          Arrumar biblioteca
+          {t("Arrumar biblioteca")}
           {fixCount > 0 && <span className="count">{fixCount}</span>}
         </button>
         <button className={`sb-link ${s.route.v === "settings" ? "on" : ""}`} onClick={() => s.go({ v: "settings" })}>
           <ISettings size={18} />
-          Configurações
+          {t("Configurações")}
         </button>
       </div>
       {creating && (
         <NameModal
-          title="Nova playlist"
-          initial={`Minha playlist nº ${s.playlists.length + 1}`}
-          action="Criar"
+          title={t("Nova playlist")}
+          initial={t("Minha playlist nº {n}", { n: s.playlists.length + 1 })}
+          action={t("Criar")}
           onClose={() => setCreating(false)}
           onSave={async (name) => {
             const id = await api.playlistCreate(name);

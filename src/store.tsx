@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, on, PlayerState, Playlist, Settings, Track } from "./api";
+import { t } from "./i18n";
 import { buildLibrary, buildMixes, Library, Mix, Plays, similarTracks, suggestions } from "./model";
 
 export type Route =
@@ -255,9 +256,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       await reload();
       if (errs.length < files)
         showToast({
-          text: `Arrumei ${sug.length} coisa${sug.length > 1 ? "s" : ""} na sua biblioteca`,
+          text: sug.length > 1 ? t("Arrumei {n} coisas na sua biblioteca", { n: sug.length }) : t("Arrumei 1 coisa na sua biblioteca"),
           action: {
-            label: "Desfazer",
+            label: t("Desfazer"),
             onClick: () => {
               localStorage.setItem("toxify.fix.ignored", JSON.stringify([...ignored, ...sug.map((x) => x.id)]));
               api.undoTags().then(() => reload());
@@ -294,12 +295,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!pl) return;
       const fresh = ids.filter((x) => !pl.tracks.includes(x));
       if (!fresh.length) {
-        showToast({ text: `Já está em "${pl.name}"` });
+        showToast({ text: t('Já está em "{name}"', { name: pl.name }) });
         return;
       }
       await api.playlistSet(id, [...pl.tracks, ...fresh]);
       await reloadPlaylists();
-      showToast({ text: `Adicionada${fresh.length > 1 ? "s" : ""} em "${pl.name}"` });
+      showToast({ text: fresh.length > 1 ? t('Adicionadas em "{name}"', { name: pl.name }) : t('Adicionada em "{name}"', { name: pl.name }) });
     },
     [playlists, reloadPlaylists, showToast],
   );
@@ -321,7 +322,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return n;
       });
       api.setLike(id, on);
-      showToast({ text: on ? "Adicionada às Curtidas" : "Removida das Curtidas" });
+      showToast({ text: on ? t("Adicionada às Curtidas") : t("Removida das Curtidas") });
     },
     plays,
     mixes,

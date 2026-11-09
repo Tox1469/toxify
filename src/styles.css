@@ -529,7 +529,8 @@ h2.sec {
   color: var(--muted);
   font-size: 13px;
 }
-.sort select {
+.sort select,
+.row-toggle select {
   background: var(--elev2);
   border: 0;
   border-radius: 6px;

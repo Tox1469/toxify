@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, artistUrl, coverUrl, Track } from "./api";
+import { t } from "./i18n";
 import { IClock, IHeart, IHeartLine, IMore, INote, IPause, IPlay } from "./icons";
 import { Album, Artist, fmtTime, isHiRes, norm, quality, splitArtists } from "./model";
 import { askAddToPlaylist, MenuItem, PlayCtx, useStore } from "./store";
@@ -97,7 +98,7 @@ export function useCoverColor(id: number | null | undefined) {
 
 export function Equalizer({ paused }: { paused?: boolean }) {
   return (
-    <span className={`eq ${paused ? "eq-paused" : ""}`} aria-label="Tocando">
+    <span className={`eq ${paused ? "eq-paused" : ""}`} aria-label={t("Tocando")}>
       <i />
       <i />
       <i />
@@ -118,7 +119,7 @@ export function QualityTag({ bits, rate, codec }: { bits: number; rate: number; 
 
 export function PlayButton({ playing, onClick, size = 56, label }: { playing?: boolean; onClick: () => void; size?: number; label?: string }) {
   return (
-    <button className="play-big" style={{ width: size, height: size }} onClick={onClick} aria-label={label ?? (playing ? "Pausar" : "Tocar")}>
+    <button className="play-big" style={{ width: size, height: size }} onClick={onClick} aria-label={label ?? (playing ? t("Pausar") : t("Tocar"))}>
       {playing ? <IPause size={size * 0.42} /> : <IPlay size={size * 0.42} />}
     </button>
   );
@@ -134,8 +135,8 @@ export function LikeButton({ id, size = 18 }: { id: number; size?: number }) {
         e.stopPropagation();
         toggleLike(id);
       }}
-      aria-label={liked ? "Tirar das Curtidas" : "Curtir"}
-      title={liked ? "Tirar das Curtidas" : "Curtir"}
+      aria-label={liked ? t("Tirar das Curtidas") : t("Curtir")}
+      title={liked ? t("Tirar das Curtidas") : t("Curtir")}
     >
       {liked ? <IHeart size={size} /> : <IHeartLine size={size} />}
     </button>
@@ -146,21 +147,21 @@ export function LikeButton({ id, size = 18 }: { id: number; size?: number }) {
 
 export function useTrackMenu() {
   const s = useStore();
-  return (t: Track, extra: MenuItem[] = []): MenuItem[] => {
-    const al = s.lib.albumByKey.get(t.album_key);
+  return (tr: Track, extra: MenuItem[] = []): MenuItem[] => {
+    const al = s.lib.albumByKey.get(tr.album_key);
     return [
-      { label: "Tocar a seguir", onClick: () => api.playNext([t.id]).then(() => s.showToast({ text: "Vai tocar a seguir" })) },
-      { label: "Adicionar à fila", onClick: () => api.enqueue([t.id]).then(() => s.showToast({ text: "Adicionada à fila" })) },
+      { label: t("Tocar a seguir"), onClick: () => api.playNext([tr.id]).then(() => s.showToast({ text: t("Vai tocar a seguir") })) },
+      { label: t("Adicionar à fila"), onClick: () => api.enqueue([tr.id]).then(() => s.showToast({ text: t("Adicionada à fila") })) },
       "sep",
-      { label: "Adicionar à playlist", onClick: () => askAddToPlaylist([t.id]) },
-      { label: s.likes.has(t.id) ? "Tirar das Curtidas" : "Curtir", onClick: () => s.toggleLike(t.id) },
+      { label: t("Adicionar à playlist"), onClick: () => askAddToPlaylist([tr.id]) },
+      { label: s.likes.has(tr.id) ? t("Tirar das Curtidas") : t("Curtir"), onClick: () => s.toggleLike(tr.id) },
       ...extra,
       "sep",
-      ...(al ? [{ label: "Ir para o álbum", onClick: () => s.go({ v: "album", key: al.key }) }] : []),
-      ...(al ? [{ label: "Ir para o artista", onClick: () => s.go({ v: "artist", key: al.artistKey }) }] : []),
-      { label: "Mudar o gênero desta música", onClick: () => window.dispatchEvent(new CustomEvent("toxify:genre", { detail: `#${t.id}` })) },
-      ...(al ? [{ label: `Mudar o gênero de ${al.artists[0] ?? al.artist}`, onClick: () => window.dispatchEvent(new CustomEvent("toxify:genre", { detail: al.artistKey })) }] : []),
-      ...(al ? [{ label: "Editar informações", onClick: () => window.dispatchEvent(new CustomEvent("toxify:edit-album", { detail: al.key })) }] : []),
+      ...(al ? [{ label: t("Ir para o álbum"), onClick: () => s.go({ v: "album", key: al.key }) }] : []),
+      ...(al ? [{ label: t("Ir para o artista"), onClick: () => s.go({ v: "artist", key: al.artistKey }) }] : []),
+      { label: t("Mudar o gênero desta música"), onClick: () => window.dispatchEvent(new CustomEvent("toxify:genre", { detail: `#${tr.id}` })) },
+      ...(al ? [{ label: t("Mudar o gênero de {name}", { name: al.artists[0] ?? al.artist }), onClick: () => window.dispatchEvent(new CustomEvent("toxify:genre", { detail: al.artistKey })) }] : []),
+      ...(al ? [{ label: t("Editar informações"), onClick: () => window.dispatchEvent(new CustomEvent("toxify:edit-album", { detail: al.key })) }] : []),
     ];
   };
 }
@@ -213,7 +214,7 @@ export function ContextMenu() {
   );
 }
 
-export function MoreButton({ items, label = "Mais opções" }: { items: () => MenuItem[]; label?: string }) {
+export function MoreButton({ items, label = t("Mais opções") }: { items: () => MenuItem[]; label?: string }) {
   const { openMenu } = useStore();
   return (
     <button
@@ -299,48 +300,48 @@ export function TrackList({
   const current = s.player?.track_id;
   const playing = s.player?.playing;
   const multiDisc = discs && new Set(tracks.map((t) => t.disc)).size > 1;
-  const menuOf = (t: Track, i: number) => menuFor(t, onRemove ? [{ label: "Tirar desta playlist", onClick: () => onRemove(i) }] : []);
+  const menuOf = (tr: Track, i: number) => menuFor(tr, onRemove ? [{ label: t("Tirar desta playlist"), onClick: () => onRemove(i) }] : []);
   let lastDisc = -1;
   return (
     <div className={`tracklist ${showAlbum ? "" : "no-album"}`} role="grid">
       <div className="tl-head" role="row">
         <span>#</span>
-        <span>Título</span>
-        {showAlbum && <span>Álbum</span>}
-        <span>Qualidade</span>
-        <span className="tl-dur" aria-label="Duração">
+        <span>{t("Título")}</span>
+        {showAlbum && <span>{t("Álbum")}</span>}
+        <span>{t("Qualidade")}</span>
+        <span className="tl-dur" aria-label={t("Duração")}>
           <IClock size={16} />
         </span>
       </div>
-      {tracks.map((t, i) => {
-        const isCur = t.id === current;
+      {tracks.map((tr, i) => {
+        const isCur = tr.id === current;
         const header =
-          multiDisc && t.disc !== lastDisc ? (
-            <div className="tl-disc" key={`d${t.disc}`}>
-              Disco {t.disc || 1}
+          multiDisc && tr.disc !== lastDisc ? (
+            <div className="tl-disc" key={`d${tr.disc}`}>
+              {t("Disco {n}", { n: tr.disc || 1 })}
             </div>
           ) : null;
-        lastDisc = t.disc;
-        const al = s.lib.albumByKey.get(t.album_key);
+        lastDisc = tr.disc;
+        const al = s.lib.albumByKey.get(tr.album_key);
         return [
           header,
           <div
-            key={`${t.id}-${i}`}
+            key={`${tr.id}-${i}`}
             role="row"
             tabIndex={0}
             draggable
-            className={`tl-row ${isCur ? "current" : ""} ${sel === t.id ? "selected" : ""} ${dragOver === i && dragFrom !== null && dragFrom !== i ? (dragFrom < i ? "drop-below" : "drop-above") : ""}`}
-            onClick={() => setSel(t.id)}
+            className={`tl-row ${isCur ? "current" : ""} ${sel === tr.id ? "selected" : ""} ${dragOver === i && dragFrom !== null && dragFrom !== i ? (dragFrom < i ? "drop-below" : "drop-above") : ""}`}
+            onClick={() => setSel(tr.id)}
             onDoubleClick={() => s.playTracks(tracks, i, ctx)}
             onKeyDown={(e) => e.key === "Enter" && s.playTracks(tracks, i, ctx)}
             onContextMenu={(e) => {
               e.preventDefault();
-              setSel(t.id);
-              s.openMenu(e, menuOf(t, i));
+              setSel(tr.id);
+              s.openMenu(e, menuOf(tr, i));
             }}
             onDragStart={(e) => {
-              e.dataTransfer.setData(DRAG_TRACKS, JSON.stringify([t.id]));
-              e.dataTransfer.setData("text/plain", `${t.title} · ${t.artist}`);
+              e.dataTransfer.setData(DRAG_TRACKS, JSON.stringify([tr.id]));
+              e.dataTransfer.setData("text/plain", `${tr.title} · ${tr.artist}`);
               e.dataTransfer.effectAllowed = "copyMove";
               if (onReorder) setDragFrom(i);
             }}
@@ -363,10 +364,10 @@ export function TrackList({
             }}
           >
             <span className="tl-num">
-              {isCur ? <Equalizer paused={!playing} /> : <span className="n">{numbers === "track" ? t.track || i + 1 : i + 1}</span>}
+              {isCur ? <Equalizer paused={!playing} /> : <span className="n">{numbers === "track" ? tr.track || i + 1 : i + 1}</span>}
               <button
                 className="tl-play"
-                aria-label={isCur && playing ? "Pausar" : `Tocar ${t.title}`}
+                aria-label={isCur && playing ? t("Pausar") : t("Tocar {name}", { name: tr.title })}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isCur) api.toggle();
@@ -377,11 +378,11 @@ export function TrackList({
               </button>
             </span>
             <span className="tl-title">
-              {showCover && <Cover id={t.id} size={80} className="tl-cover" />}
+              {showCover && <Cover id={tr.id} size={80} className="tl-cover" />}
               <span className="tl-text">
-                <span className="tl-name">{t.title}</span>
+                <span className="tl-name">{tr.title}</span>
                 <span className="tl-artist">
-                  <ArtistLinks text={t.artist || t.album_artist} />
+                  <ArtistLinks text={tr.artist || tr.album_artist} />
                 </span>
               </span>
             </span>
@@ -397,17 +398,17 @@ export function TrackList({
                     {al.title}
                   </a>
                 ) : (
-                  t.album
+                  tr.album
                 )}
               </span>
             )}
             <span className="tl-q">
-              <QualityTag bits={t.bits} rate={t.rate} codec={t.codec} />
+              <QualityTag bits={tr.bits} rate={tr.rate} codec={tr.codec} />
             </span>
             <span className="tl-dur">
-              <LikeButton id={t.id} size={16} />
-              <span className="d">{fmtTime(t.secs)}</span>
-              <MoreButton items={() => menuOf(t, i)} />
+              <LikeButton id={tr.id} size={16} />
+              <span className="d">{fmtTime(tr.secs)}</span>
+              <MoreButton items={() => menuOf(tr, i)} />
             </span>
           </div>,
         ];
@@ -498,12 +499,12 @@ export function AlbumCard({ album, sub }: { album: Album; sub?: string }) {
       onContextMenu={(e) => {
         e.preventDefault();
         s.openMenu(e, [
-          { label: "Tocar", onClick: () => s.playTracks(album.tracks, 0, `album:${album.key}`) },
-          { label: "Adicionar à fila", onClick: () => api.enqueue(album.tracks.map((t) => t.id)).then(() => s.showToast({ text: "Álbum adicionado à fila" })) },
-          { label: "Adicionar à playlist", onClick: () => askAddToPlaylist(album.tracks.map((t) => t.id)) },
+          { label: t("Tocar"), onClick: () => s.playTracks(album.tracks, 0, `album:${album.key}`) },
+          { label: t("Adicionar à fila"), onClick: () => api.enqueue(album.tracks.map((x) => x.id)).then(() => s.showToast({ text: t("Álbum adicionado à fila") })) },
+          { label: t("Adicionar à playlist"), onClick: () => askAddToPlaylist(album.tracks.map((x) => x.id)) },
           "sep",
-          { label: "Ir para o artista", onClick: () => s.go({ v: "artist", key: album.artistKey }) },
-          { label: "Editar informações", onClick: () => window.dispatchEvent(new CustomEvent("toxify:edit-album", { detail: album.key })) },
+          { label: t("Ir para o artista"), onClick: () => s.go({ v: "artist", key: album.artistKey }) },
+          { label: t("Editar informações"), onClick: () => window.dispatchEvent(new CustomEvent("toxify:edit-album", { detail: album.key })) },
         ]);
       }}
     >
@@ -511,7 +512,7 @@ export function AlbumCard({ album, sub }: { album: Album; sub?: string }) {
         <Cover id={album.coverId} size={300} alt={album.title} />
         <button
           className={`card-play ${isCur ? "on" : ""}`}
-          aria-label={`Tocar ${album.title}`}
+          aria-label={t("Tocar {name}", { name: album.title })}
           onClick={(e) => {
             e.stopPropagation();
             if (isCur) api.toggle();
@@ -538,7 +539,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
         <ArtistImage name={artist.name} />
         <button
           className="card-play"
-          aria-label={`Tocar ${artist.name}`}
+          aria-label={t("Tocar {name}", { name: artist.name })}
           onClick={(e) => {
             e.stopPropagation();
             s.playTracks(artist.tracks, 0, `artist:${artist.key}`);
@@ -548,7 +549,7 @@ export function ArtistCard({ artist }: { artist: Artist }) {
         </button>
       </div>
       <div className="card-title">{artist.name}</div>
-      <div className="card-sub">Artista</div>
+      <div className="card-sub">{t("Artista")}</div>
     </div>
   );
 }
@@ -560,7 +561,7 @@ export function Shelf({ title, children, onMore }: { title: string; children: Re
         <h2>{onMore ? <a onClick={onMore}>{title}</a> : title}</h2>
         {onMore && (
           <a className="shelf-more" onClick={onMore}>
-            Mostrar tudo
+            {t("Mostrar tudo")}
           </a>
         )}
       </div>

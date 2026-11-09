@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api, Lyrics, Track } from "./api";
 import { IClose, ICollapse, IDisc, IExpand, IMic, IMute, IPerson, INext, IPanel, IPause, IPlay, IPrev, IQueue, IRepeat, IShuffle, IVolume } from "./icons";
-import { fmtTime, khz, showArtists } from "./model";
+import { dec, LANG, t } from "./i18n";
+import { fmtTime, khz, plural, showArtists } from "./model";
 import { usePosition, useStore } from "./store";
 import { ArtistImage, ArtistLinks, Cover, LikeButton, useCoverColor } from "./ui";
 
@@ -54,7 +55,7 @@ function Progress() {
           setDrag(null);
         }}
         role="slider"
-        aria-label="Posição da música"
+        aria-label={t("Posição da música")}
         aria-valuemin={0}
         aria-valuemax={Math.round(dur)}
         aria-valuenow={Math.round(shown)}
@@ -104,15 +105,15 @@ function Volume() {
   }, [player, v]);
   const boost = vol > 1;
   const title = boost
-    ? `Boost de +${Math.round((vol - 1) * 100)}%: o som é amplificado e um limitador segura os picos`
+    ? t("Boost de +{n}%: o som é amplificado e um limitador segura os picos", { n: Math.round((vol - 1) * 100) })
     : vol === 1
-      ? "Volume 100%: o som sai intocado"
-      : "Abaixo de 100% o volume é digital (o som é recalculado)";
+      ? t("Volume 100%: o som sai intocado")
+      : t("Abaixo de 100% o volume é digital (o som é recalculado)");
   return (
     <div className={`volume ${boost ? "boost" : ""} ${fx}`} title={title}>
       <button
         className="icon-btn"
-        aria-label={vol > 0 ? "Silenciar" : "Tirar do mudo"}
+        aria-label={vol > 0 ? t("Silenciar") : t("Tirar do mudo")}
         onClick={() => {
           if (vol > 0) {
             last.current = vol;
@@ -160,17 +161,17 @@ function QualityBadge() {
     return () => window.removeEventListener("mousedown", close);
   }, [open]);
   if (!player || player.track_id == null) return null;
-  const t = lib.byId.get(player.track_id);
+  const tr = lib.byId.get(player.track_id);
   const converted = player.resampled || player.out_mode === "compartilhado";
-  const label = `${t?.codec ?? ""} ${player.src_bits ? player.src_bits + "/" : ""}${khz(player.src_rate)}`;
+  const label = `${tr?.codec ?? ""} ${player.src_bits ? player.src_bits + "/" : ""}${khz(player.src_rate)}`;
   let status: string;
-  if (!player.out_rate) status = "Pausado. Quando tocar, mostra aqui como o som está saindo.";
-  else if (player.out_mode === "compartilhado") status = "Modo compartilhado: o Windows mistura e converte o som.";
-  else if (player.resampled) status = `Convertida de ${khz(player.src_rate)} pra ${khz(player.out_rate)} kHz pra entrar no crossfade sem pausa.`;
-  else if (player.speed !== 1 || player.pitch !== 1) status = "Velocidade ou tom alterados: o som é processado. Voltando os dois ao normal, sai intocado.";
-  else if (player.volume > 1) status = `Boost de +${Math.round((player.volume - 1) * 100)}%: o som é amplificado e um limitador segura os picos. Em 100% sai intocado.`;
-  else if (player.volume < 1) status = "Volume abaixo de 100%: o som é recalculado. Em 100% sai intocado.";
-  else status = "Bit-perfect: sai exatamente como está no arquivo.";
+  if (!player.out_rate) status = t("Pausado. Quando tocar, mostra aqui como o som está saindo.");
+  else if (player.out_mode === "compartilhado") status = t("Modo compartilhado: o Windows mistura e converte o som.");
+  else if (player.resampled) status = t("Convertida de {from} pra {to} kHz pra entrar no crossfade sem pausa.", { from: khz(player.src_rate), to: khz(player.out_rate) });
+  else if (player.speed !== 1 || player.pitch !== 1) status = t("Velocidade ou tom alterados: o som é processado. Voltando os dois ao normal, sai intocado.");
+  else if (player.volume > 1) status = t("Boost de +{n}%: o som é amplificado e um limitador segura os picos. Em 100% sai intocado.", { n: Math.round((player.volume - 1) * 100) });
+  else if (player.volume < 1) status = t("Volume abaixo de 100%: o som é recalculado. Em 100% sai intocado.");
+  else status = t("Bit-perfect: sai exatamente como está no arquivo.");
   return (
     <div className="qbadge-wrap" ref={ref}>
       <button className={`qbadge ${converted ? "warn" : ""}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} title={status}>
@@ -179,9 +180,9 @@ function QualityBadge() {
         {player.crossfade && <span className="xf">Crossfade {player.crossfade_secs}s</span>}
         {(player.speed !== 1 || player.pitch !== 1) && (
           <span className="xf">
-            {player.speed !== 1 ? `${player.speed.toFixed(2).replace(".", ",")}x` : ""}
+            {player.speed !== 1 ? `${dec(player.speed.toFixed(2))}x` : ""}
             {player.speed !== 1 && player.pitch !== 1 ? " · " : ""}
-            {player.pitch !== 1 ? `tom ${Math.round(12 * Math.log2(player.pitch)) > 0 ? "+" : ""}${Math.round(12 * Math.log2(player.pitch))}` : ""}
+            {player.pitch !== 1 ? `${t("tom")} ${Math.round(12 * Math.log2(player.pitch)) > 0 ? "+" : ""}${Math.round(12 * Math.log2(player.pitch))}` : ""}
           </span>
         )}
       </button>
@@ -194,28 +195,28 @@ function QualityPopover({ status }: { status: string }) {
   const { player, lib } = useStore();
   const [secs, setSecs] = useState(player?.crossfade_secs ?? 6);
   if (!player) return null;
-  const t = player.track_id != null ? lib.byId.get(player.track_id) : null;
+  const tr = player.track_id != null ? lib.byId.get(player.track_id) : null;
   return (
     <div className="popover qpop">
-      <h3>Som</h3>
+      <h3>{t("Som")}</h3>
       <dl>
-        <dt>Arquivo</dt>
+        <dt>{t("Arquivo")}</dt>
         <dd>
-          {t?.codec} · {player.src_bits ? `${player.src_bits} bit · ` : ""}
+          {tr?.codec} · {player.src_bits ? `${player.src_bits} bit · ` : ""}
           {khz(player.src_rate)} kHz
         </dd>
-        <dt>Saída</dt>
+        <dt>{t("Saída")}</dt>
         <dd>
-          {player.out_rate ? `${khz(player.out_rate)} kHz · ${player.out_bits} bit · ${player.out_mode}` : "pausado"}
+          {player.out_rate ? `${khz(player.out_rate)} kHz · ${player.out_bits} bit · ${t(player.out_mode)}` : t("pausado")}
         </dd>
-        <dt>Placa</dt>
-        <dd>{player.device || "Padrão do Windows"}</dd>
+        <dt>{t("Placa")}</dt>
+        <dd>{player.device || t("Padrão do Windows")}</dd>
       </dl>
       <p className={`qstatus ${player.resampled || player.out_mode === "compartilhado" ? "warn" : ""}`}>{status}</p>
       <label className="row-toggle">
         <span>
           Crossfade
-          <small>Mistura uma música na outra ao trocar de álbum. Álbum em ordem emenda sem pausa.</small>
+          <small>{t("Mistura uma música na outra ao trocar de álbum. Álbum em ordem emenda sem pausa.")}</small>
         </span>
         <Switch on={player.crossfade} onChange={(on) => api.setCrossfade(on, secs)} />
       </label>
@@ -230,7 +231,7 @@ function QualityPopover({ status }: { status: string }) {
             onChange={(e) => setSecs(Number(e.target.value))}
             onPointerUp={() => api.setCrossfade(true, secs)}
             onKeyUp={() => api.setCrossfade(true, secs)}
-            aria-label="Duração do crossfade"
+            aria-label={t("Duração do crossfade")}
             style={{ ["--p" as string]: `${((secs - 1) / 11) * 100}%` }}
           />
           <span>{secs} s</span>
@@ -239,8 +240,8 @@ function QualityPopover({ status }: { status: string }) {
       <SpeedPitch />
       <label className="row-toggle">
         <span>
-          Modo exclusivo
-          <small>O Toxify fala direto com a placa, sem o Windows no meio. Outros apps ficam sem som enquanto toca.</small>
+          {t("Modo exclusivo")}
+          <small>{t("O Toxify fala direto com a placa, sem o Windows no meio. Outros apps ficam sem som enquanto toca.")}</small>
         </span>
         <Switch on={player.exclusive} onChange={(on) => api.setExclusive(on)} />
       </label>
@@ -267,12 +268,13 @@ function SpeedPitch() {
     if (speed != null && player && Math.abs(player.speed - speed) < 0.001) setSpeed(null);
     if (semi != null && player && Math.round(12 * Math.log2(player.pitch || 1)) === semi) setSemi(null);
   }, [player, speed, semi]);
-  const fmtSpeed = (v: number) => `${v.toFixed(2).replace(".", ",")}x`;
-  const fmtSemi = (s: number) => (s === 0 ? "original" : `${s > 0 ? "+" : ""}${s} semitom${Math.abs(s) === 1 ? "" : "s"}`);
+  const fmtSpeed = (v: number) => `${dec(v.toFixed(2))}x`;
+  const fmtSemi = (s: number) =>
+    s === 0 ? t("original") : Math.abs(s) === 1 ? t("{n} semitom", { n: s > 0 ? "+1" : "-1" }) : t("{n} semitons", { n: `${s > 0 ? "+" : ""}${s}` });
   return (
     <div className="sp-box">
       <div className="sp-row">
-        <span className="sp-label">Velocidade</span>
+        <span className="sp-label">{t("Velocidade")}</span>
         <input
           type="range"
           min={0.5}
@@ -280,16 +282,16 @@ function SpeedPitch() {
           step={0.05}
           value={curSpeed}
           onChange={(e) => applySpeed(Number(e.target.value))}
-          aria-label="Velocidade"
+          aria-label={t("Velocidade")}
           style={{ ["--p" as string]: `${((curSpeed - 0.5) / 1.5) * 100}%` }}
         />
         <span className="sp-val">{fmtSpeed(curSpeed)}</span>
-        <button className="sp-reset" disabled={curSpeed === 1} onClick={() => applySpeed(1)} title="Voltar ao normal">
+        <button className="sp-reset" disabled={curSpeed === 1} onClick={() => applySpeed(1)} title={t("Voltar ao normal")}>
           1x
         </button>
       </div>
       <div className="sp-row">
-        <span className="sp-label">Tom</span>
+        <span className="sp-label">{t("Tom")}</span>
         <input
           type="range"
           min={-12}
@@ -297,15 +299,17 @@ function SpeedPitch() {
           step={1}
           value={curSemi}
           onChange={(e) => applySemi(Number(e.target.value))}
-          aria-label="Tom"
+          aria-label={t("Tom")}
           style={{ ["--p" as string]: `${((curSemi + 12) / 24) * 100}%` }}
         />
         <span className="sp-val">{fmtSemi(curSemi)}</span>
-        <button className="sp-reset" disabled={curSemi === 0} onClick={() => applySemi(0)} title="Voltar ao tom original">
+        <button className="sp-reset" disabled={curSemi === 0} onClick={() => applySemi(0)} title={t("Voltar ao tom original")}>
           0
         </button>
       </div>
-      {(curSpeed !== 1 || curSemi !== 0) && <small className="sp-note">Com velocidade ou tom mexidos o som é processado. Voltando os dois ao normal, sai intocado de novo.</small>}
+      {(curSpeed !== 1 || curSemi !== 0) && (
+        <small className="sp-note">{t("Com velocidade ou tom mexidos o som é processado. Voltando os dois ao normal, sai intocado de novo.")}</small>
+      )}
     </div>
   );
 }
@@ -321,39 +325,39 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
 export function PlayerBar() {
   const s = useStore();
   const p = s.player;
-  const t = p?.track_id != null ? s.lib.byId.get(p.track_id) : undefined;
-  const al = t ? s.lib.albumByKey.get(t.album_key) : undefined;
-  const repeatLabel = ["Repetir", "Repetir a fila", "Repetir esta música"][p?.repeat ?? 0];
+  const tr = p?.track_id != null ? s.lib.byId.get(p.track_id) : undefined;
+  const al = tr ? s.lib.albumByKey.get(tr.album_key) : undefined;
+  const repeatLabel = [t("Repetir"), t("Repetir a fila"), t("Repetir esta música")][p?.repeat ?? 0];
   return (
     <footer className="playerbar">
       <div className="pb-left">
-        {t ? (
+        {tr ? (
           <>
-            <Cover id={t.id} size={120} className="pb-cover" />
+            <Cover id={tr.id} size={120} className="pb-cover" />
             <div className="pb-text">
-              <a className="pb-title" onClick={() => al && s.go({ v: "album", key: al.key })} title={t.title}>
-                {t.title}
+              <a className="pb-title" onClick={() => al && s.go({ v: "album", key: al.key })} title={tr.title}>
+                {tr.title}
               </a>
               <span className="pb-artist">
-                <ArtistLinks text={t.artist || t.album_artist} />
+                <ArtistLinks text={tr.artist || tr.album_artist} />
               </span>
             </div>
-            <LikeButton id={t.id} />
+            <LikeButton id={tr.id} />
           </>
         ) : null}
       </div>
       <div className="pb-center">
         <div className="pb-buttons">
-          <button className={`icon-btn ${p?.shuffle ? "active" : ""}`} onClick={() => api.setShuffle(!p?.shuffle)} aria-label="Aleatório" title="Aleatório">
+          <button className={`icon-btn ${p?.shuffle ? "active" : ""}`} onClick={() => api.setShuffle(!p?.shuffle)} aria-label={t("Aleatório")} title={t("Aleatório")}>
             <IShuffle size={18} />
           </button>
-          <button className="icon-btn" onClick={() => api.prev()} aria-label="Anterior" title="Anterior">
+          <button className="icon-btn" onClick={() => api.prev()} aria-label={t("Anterior")} title={t("Anterior")}>
             <IPrev size={18} />
           </button>
-          <button className="pb-play" onClick={() => api.toggle()} aria-label={p?.playing ? "Pausar" : "Tocar"}>
+          <button className="pb-play" onClick={() => api.toggle()} aria-label={p?.playing ? t("Pausar") : t("Tocar")}>
             {p?.playing ? <IPause size={18} /> : <IPlay size={18} />}
           </button>
-          <button className="icon-btn" onClick={() => api.next()} aria-label="Próxima" title="Próxima">
+          <button className="icon-btn" onClick={() => api.next()} aria-label={t("Próxima")} title={t("Próxima")}>
             <INext size={18} />
           </button>
           <button
@@ -369,49 +373,49 @@ export function PlayerBar() {
       </div>
       <div className="pb-right">
         <QualityBadge />
-        <button className={`icon-btn ${s.route.v === "lyrics" ? "active" : ""}`} onClick={() => (s.route.v === "lyrics" ? s.back() : s.go({ v: "lyrics" }))} aria-label="Letra" title="Letra">
+        <button className={`icon-btn ${s.route.v === "lyrics" ? "active" : ""}`} onClick={() => (s.route.v === "lyrics" ? s.back() : s.go({ v: "lyrics" }))} aria-label={t("Letra")} title={t("Letra")}>
           <IMic size={18} />
         </button>
-        <button className={`icon-btn ${s.route.v === "queue" ? "active" : ""}`} onClick={() => (s.route.v === "queue" ? s.back() : s.go({ v: "queue" }))} aria-label="Fila" title="Fila">
+        <button className={`icon-btn ${s.route.v === "queue" ? "active" : ""}`} onClick={() => (s.route.v === "queue" ? s.back() : s.go({ v: "queue" }))} aria-label={t("Fila")} title={t("Fila")}>
           <IQueue size={18} />
         </button>
-        <button className={`icon-btn ${s.rightPanel ? "active" : ""}`} onClick={() => s.setRightPanel(!s.rightPanel)} aria-label="Tocando agora" title="Painel Tocando agora">
+        <button className={`icon-btn ${s.rightPanel ? "active" : ""}`} onClick={() => s.setRightPanel(!s.rightPanel)} aria-label={t("Tocando agora")} title={t("Painel Tocando agora")}>
           <IPanel size={18} />
         </button>
         <Volume />
-        <button className="icon-btn" onClick={() => openStage(s.route.v === "lyrics" ? "letra" : "capa")} aria-label="Tela cheia" title="Tela cheia">
+        <button className="icon-btn" onClick={() => openStage(s.route.v === "lyrics" ? "letra" : "capa")} aria-label={t("Tela cheia")} title={t("Tela cheia")}>
           <IExpand size={18} />
         </button>
       </div>
-      {p?.error && <div className="pb-error">Não deu pra tocar: {p.error}</div>}
+      {p?.error && <div className="pb-error">{t("Não deu pra tocar: {error}", { error: p.error })}</div>}
     </footer>
   );
 }
 
 // ---------------------------------------------------------------- letra
 
-export function useLyrics(t: Track | undefined) {
+export function useLyrics(tr: Track | undefined) {
   const [state, setState] = useState<{ id: number; lyrics: Lyrics | null; loading: boolean } | null>(null);
   useEffect(() => {
-    if (!t) return;
+    if (!tr) return;
     let alive = true;
-    setState({ id: t.id, lyrics: null, loading: true });
+    setState({ id: tr.id, lyrics: null, loading: true });
     api
-      .lyrics(t.id)
-      .then((l) => alive && setState({ id: t.id, lyrics: l, loading: false }))
-      .catch(() => alive && setState({ id: t.id, lyrics: null, loading: false }));
+      .lyrics(tr.id, LANG)
+      .then((l) => alive && setState({ id: tr.id, lyrics: l, loading: false }))
+      .catch(() => alive && setState({ id: tr.id, lyrics: null, loading: false }));
     return () => {
       alive = false;
     };
-  }, [t?.id]);
-  return state?.id === t?.id ? state : null;
+  }, [tr?.id]);
+  return state?.id === tr?.id ? state : null;
 }
 
 export function LyricsView({ lyrics, big }: { lyrics: Lyrics; big?: boolean }) {
   const pos = usePosition();
   const [showTr, setShowTr] = useState(() => localStorage.getItem("toxify.tr") !== "0");
   const box = useRef<HTMLDivElement>(null);
-  const hasTr = !!lyrics.translation && !!lyrics.lang && lyrics.lang !== "pt";
+  const hasTr = !!lyrics.translation && !!lyrics.lang && lyrics.lang !== LANG;
   // A letra entra uns 0,3 s antes pra dar tempo de ler.
   const cur = useMemo(() => {
     if (!lyrics.synced) return -1;
@@ -426,7 +430,7 @@ export function LyricsView({ lyrics, big }: { lyrics: Lyrics; big?: boolean }) {
       b.scrollTo({ top: el.offsetTop - b.clientHeight * (big ? 0.35 : 0.3), behavior: "smooth" });
     }
   }, [cur, big]);
-  if (!lyrics.lines.length) return <p className="lyr-empty">{lyrics.source === "instrumental" ? "Instrumental, sem letra." : "Sem letra."}</p>;
+  if (!lyrics.lines.length) return <p className="lyr-empty">{lyrics.source === "instrumental" ? t("Instrumental, sem letra.") : t("Sem letra.")}</p>;
   return (
     <div className={`lyrics ${big ? "lyrics-big" : ""} ${lyrics.synced ? "" : "unsynced"}`}>
       {hasTr && (
@@ -437,7 +441,7 @@ export function LyricsView({ lyrics, big }: { lyrics: Lyrics; big?: boolean }) {
             localStorage.setItem("toxify.tr", showTr ? "0" : "1");
           }}
         >
-          Tradução
+          {t("Tradução")}
         </button>
       )}
       <div className="lyr-lines" ref={box}>
@@ -447,13 +451,16 @@ export function LyricsView({ lyrics, big }: { lyrics: Lyrics; big?: boolean }) {
             data-i={i}
             className={i === cur ? "cur" : i < cur ? "past" : ""}
             onClick={() => lyrics.synced && api.seek(l.t)}
-            title={lyrics.synced ? "Ir pra esse trecho" : undefined}
+            title={lyrics.synced ? t("Ir pra esse trecho") : undefined}
           >
             {l.text || "♪"}
             {hasTr && showTr && lyrics.translation![i] && lyrics.translation![i] !== l.text && <em>{lyrics.translation![i]}</em>}
           </p>
         ))}
-        <small className="lyr-src">Letra: {lyrics.source}{hasTr ? " · Tradução automática" : ""}</small>
+        <small className="lyr-src">
+          {t("Letra: {source}", { source: t(lyrics.source) })}
+          {hasTr ? ` · ${t("Tradução automática")}` : ""}
+        </small>
       </div>
     </div>
   );
@@ -464,58 +471,64 @@ export function LyricsView({ lyrics, big }: { lyrics: Lyrics; big?: boolean }) {
 export function NowPlaying() {
   const s = useStore();
   const p = s.player;
-  const t = p?.track_id != null ? s.lib.byId.get(p.track_id) : undefined;
+  const tr = p?.track_id != null ? s.lib.byId.get(p.track_id) : undefined;
   const next = p?.next_id != null ? s.lib.byId.get(p.next_id) : undefined;
-  const lyr = useLyrics(t);
-  const al = t ? s.lib.albumByKey.get(t.album_key) : undefined;
+  const lyr = useLyrics(tr);
+  const al = tr ? s.lib.albumByKey.get(tr.album_key) : undefined;
   const artist = al ? s.lib.artistByKey.get(al.artistKey) : undefined;
-  if (!t)
+  if (!tr)
     return (
       <aside className="right panel np-empty">
-        <p>Escolhe uma música pra começar.</p>
+        <p>{t("Escolhe uma música pra começar.")}</p>
       </aside>
     );
   const mode =
     p?.next_mode === "crossfade"
-      ? `entra com crossfade de ${p.crossfade_secs}s`
+      ? t("entra com crossfade de {n}s", { n: p.crossfade_secs })
       : p?.next_mode === "emendada"
-        ? "emendada, sem pausa"
+        ? t("emendada, sem pausa")
         : p?.next_mode === "troca de taxa"
-          ? `a placa troca pra ${khz(next?.rate ?? 0)} kHz`
+          ? t("a placa troca pra {rate} kHz", { rate: khz(next?.rate ?? 0) })
           : "";
   return (
     <aside className="right panel">
       <div className="np-head">
         <span>{al?.title}</span>
-        <button className="icon-btn" onClick={() => s.setRightPanel(false)} aria-label="Fechar painel">
+        <button className="icon-btn" onClick={() => s.setRightPanel(false)} aria-label={t("Fechar painel")}>
           <IClose size={18} />
         </button>
       </div>
       <div className="np-scroll">
-        <Cover id={t.id} size={640} className="np-cover" />
+        <Cover id={tr.id} size={640} className="np-cover" />
         <div className="np-title">
           <div>
-            <h3 title={t.title}>{t.title}</h3>
+            <h3 title={tr.title}>{tr.title}</h3>
             <span>
-              <ArtistLinks text={t.artist || t.album_artist} />
+              <ArtistLinks text={tr.artist || tr.album_artist} />
             </span>
           </div>
-          <LikeButton id={t.id} size={22} />
+          <LikeButton id={tr.id} size={22} />
         </div>
 
         <section className="np-card np-lyrics">
           <div className="np-card-head">
-            <h4>Letra</h4>
-            <a onClick={() => s.go({ v: "lyrics" })}>Abrir</a>
+            <h4>{t("Letra")}</h4>
+            <a onClick={() => s.go({ v: "lyrics" })}>{t("Abrir")}</a>
           </div>
-          {lyr?.loading ? <p className="lyr-empty">Procurando a letra…</p> : lyr?.lyrics ? <LyricsView lyrics={lyr.lyrics} /> : <p className="lyr-empty">Não achei a letra dessa.</p>}
+          {lyr?.loading ? (
+            <p className="lyr-empty">{t("Procurando a letra…")}</p>
+          ) : lyr?.lyrics ? (
+            <LyricsView lyrics={lyr.lyrics} />
+          ) : (
+            <p className="lyr-empty">{t("Não achei a letra dessa.")}</p>
+          )}
         </section>
 
         {next && (
           <section className="np-card np-next" onDoubleClick={() => api.next()}>
             <div className="np-card-head">
-              <h4>A seguir</h4>
-              <a onClick={() => s.go({ v: "queue" })}>Abrir fila</a>
+              <h4>{t("A seguir")}</h4>
+              <a onClick={() => s.go({ v: "queue" })}>{t("Abrir fila")}</a>
             </div>
             <div className="np-next-row">
               <Cover id={next.id} size={80} className="np-next-cover" />
@@ -534,7 +547,10 @@ export function NowPlaying() {
             <div className="np-artist-text">
               <h4>{artist.name}</h4>
               <span>
-                {artist.albums.length} {artist.albums.length === 1 ? "álbum" : "álbuns"} · {artist.tracks.length} músicas na sua biblioteca
+                {t("{albums} · {tracks} na sua biblioteca", {
+                  albums: plural(artist.albums.length, t("álbum"), t("álbuns")),
+                  tracks: plural(artist.tracks.length, t("música"), t("músicas")),
+                })}
               </span>
             </div>
           </section>
@@ -552,20 +568,20 @@ export const openStage = (mode: StageMode = "capa") => window.dispatchEvent(new 
 
 export function Stage({ mode, setMode, onClose }: { mode: StageMode; setMode: (m: StageMode) => void; onClose: () => void }) {
   const s = useStore();
-  const t = s.player?.track_id != null ? s.lib.byId.get(s.player.track_id) : undefined;
-  const al = t ? s.lib.albumByKey.get(t.album_key) : undefined;
+  const tr = s.player?.track_id != null ? s.lib.byId.get(s.player.track_id) : undefined;
+  const al = tr ? s.lib.albumByKey.get(tr.album_key) : undefined;
   const ar = al ? s.lib.artistByKey.get(al.artistKey) : undefined;
-  const color = useCoverColor(t?.id);
-  const lyr = useLyrics(mode === "letra" ? t : undefined);
+  const color = useCoverColor(tr?.id);
+  const lyr = useLyrics(mode === "letra" ? tr : undefined);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [onClose]);
   const modes: [StageMode, string, ReactNode][] = [
-    ["capa", "Capa", <IDisc size={20} key="c" />],
-    ["artista", "Artista", <IPerson size={20} key="a" />],
-    ["letra", "Letra", <IMic size={20} key="l" />],
+    ["capa", t("Capa"), <IDisc size={20} key="c" />],
+    ["artista", t("Artista"), <IPerson size={20} key="a" />],
+    ["letra", t("Letra"), <IMic size={20} key="l" />],
   ];
   return (
     <div className={`stage stage-${mode}`} style={{ ["--hero" as string]: color }}>
@@ -578,31 +594,31 @@ export function Stage({ mode, setMode, onClose }: { mode: StageMode; setMode: (m
             </button>
           ))}
           <span className="stage-sep" />
-          <button className="stage-btn" onClick={onClose} aria-label="Sair da tela cheia" title="Sair da tela cheia (Esc)">
+          <button className="stage-btn" onClick={onClose} aria-label={t("Sair da tela cheia")} title={t("Sair da tela cheia (Esc)")}>
             <ICollapse size={20} />
           </button>
         </div>
       </div>
-      {!t ? (
-        <div className="stage-empty">Toca uma música pra ver aqui.</div>
+      {!tr ? (
+        <div className="stage-empty">{t("Toca uma música pra ver aqui.")}</div>
       ) : mode === "capa" ? (
-        <div className="stage-cover" key={t.id}>
-          <Cover id={t.id} size={1200} className="stage-art" alt={t.title} />
+        <div className="stage-cover" key={tr.id}>
+          <Cover id={tr.id} size={1200} className="stage-art" alt={tr.title} />
           <div className="stage-info">
-            <h1>{t.title}</h1>
+            <h1>{tr.title}</h1>
             <p>
-              <ArtistLinks text={t.artist || t.album_artist} />
+              <ArtistLinks text={tr.artist || tr.album_artist} />
             </p>
           </div>
         </div>
       ) : mode === "letra" ? (
         <div className="stage-lyrics">
           {lyr?.loading ? (
-            <p className="lyr-empty big">Procurando a letra…</p>
+            <p className="lyr-empty big">{t("Procurando a letra…")}</p>
           ) : lyr?.lyrics ? (
             <LyricsView lyrics={lyr.lyrics} big />
           ) : (
-            <p className="lyr-empty big">Não achei a letra dessa.</p>
+            <p className="lyr-empty big">{t("Não achei a letra dessa.")}</p>
           )}
         </div>
       ) : ar ? (
@@ -612,7 +628,10 @@ export function Stage({ mode, setMode, onClose }: { mode: StageMode; setMode: (m
           <div className="stage-artist-info">
             <h1>{ar.name}</h1>
             <p>
-              {ar.albums.length} {ar.albums.length === 1 ? "álbum" : "álbuns"} · {ar.tracks.length} músicas na sua biblioteca
+              {t("{albums} · {tracks} na sua biblioteca", {
+                albums: plural(ar.albums.length, t("álbum"), t("álbuns")),
+                tracks: plural(ar.tracks.length, t("música"), t("músicas")),
+              })}
             </p>
             <div className="stage-albums">
               {ar.albums.slice(0, 6).map((a) => (
@@ -633,7 +652,7 @@ export function Stage({ mode, setMode, onClose }: { mode: StageMode; setMode: (m
           </div>
         </div>
       ) : (
-        <div className="stage-empty">Sem informações do artista.</div>
+        <div className="stage-empty">{t("Sem informações do artista.")}</div>
       )}
     </div>
   );

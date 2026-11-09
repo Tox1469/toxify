@@ -23,9 +23,12 @@ pub struct Lyrics {
     pub synced: bool,
     pub lines: Vec<Line>,
     pub source: String,
-    /// Idioma detectado da letra e as linhas traduzidas pra português (mesma ordem).
+    /// Idioma detectado da letra e as linhas traduzidas pro idioma `to` (mesma ordem).
     pub lang: Option<String>,
     pub translation: Option<Vec<String>>,
+    /// Idioma da tradução guardada (cache antigo sem o campo = português).
+    #[serde(default)]
+    pub to: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -347,6 +350,7 @@ impl Online {
             if c.lines.len() == l.lines.len() {
                 l.lang = c.lang;
                 l.translation = c.translation;
+                l.to = c.to;
             }
         }
         l
@@ -354,8 +358,8 @@ impl Online {
 
     // ------------------------------------------------ tradução
 
-    /// Traduz as linhas pra português. Devolve (idioma detectado, linhas traduzidas).
-    pub async fn translate(&self, lines: &[String]) -> Option<(String, Vec<String>)> {
+    /// Traduz as linhas pro idioma `to` ("pt", "en"). Devolve (idioma detectado, linhas traduzidas).
+    pub async fn translate(&self, lines: &[String], to: &str) -> Option<(String, Vec<String>)> {
         let text = lines.join("\n");
         if text.trim().is_empty() {
             return None;
@@ -363,7 +367,7 @@ impl Online {
         let v: serde_json::Value = self
             .http
             .post("https://translate.googleapis.com/translate_a/single")
-            .query(&[("client", "gtx"), ("sl", "auto"), ("tl", "pt"), ("dt", "t")])
+            .query(&[("client", "gtx"), ("sl", "auto"), ("tl", to), ("dt", "t")])
             .form(&[("q", text.as_str())])
             .send()
             .await
