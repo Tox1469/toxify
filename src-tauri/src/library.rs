@@ -243,6 +243,19 @@ impl Library {
         st.query_map([], |r| Ok([r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?])).unwrap().filter_map(|r| r.ok()).collect()
     }
 
+    /// Cada audição com `from <= at < to` (segundos unix): (faixa, quando, segundos ouvidos, pulou).
+    /// É o que a Retrospectiva soma.
+    pub fn play_log(&self, from: i64, to: i64) -> Vec<(i64, i64, f64, bool)> {
+        let db = self.db.lock().unwrap();
+        let mut st = db
+            .prepare("SELECT track_id, at, COALESCE(secs, 0), COALESCE(skipped, 0) FROM plays WHERE at >= ?1 AND at < ?2 ORDER BY at")
+            .unwrap();
+        st.query_map(params![from, to], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, i64>(3)? != 0)))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    }
+
     // ------------------------------------------------ playlists
 
     pub fn playlists(&self) -> Vec<Playlist> {

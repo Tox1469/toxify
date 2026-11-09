@@ -150,6 +150,12 @@ function Volume() {
   );
 }
 
+/** Ganho linear → "-6,2" / "+1,5". */
+const rgDb = (g: number) => {
+  const db = 20 * Math.log10(g);
+  return (db > 0 ? "+" : "") + dec(db.toFixed(1));
+};
+
 function QualityBadge() {
   const { player, lib } = useStore();
   const [open, setOpen] = useState(false);
@@ -168,6 +174,7 @@ function QualityBadge() {
   if (!player.out_rate) status = t("Pausado. Quando tocar, mostra aqui como o som está saindo.");
   else if (player.out_mode === "compartilhado") status = t("Modo compartilhado: o Windows mistura e converte o som.");
   else if (player.resampled) status = t("Convertida de {from} pra {to} kHz pra entrar no crossfade sem pausa.", { from: khz(player.src_rate), to: khz(player.out_rate) });
+  else if (player.rg_gain !== 1) status = t("ReplayGain ligado: o volume é ajustado em {db} dB pra nivelar. Desligando, sai intocado.", { db: rgDb(player.rg_gain) });
   else if (player.speed !== 1 || player.pitch !== 1) status = t("Velocidade ou tom alterados: o som é processado. Voltando os dois ao normal, sai intocado.");
   else if (player.volume > 1) status = t("Boost de +{n}%: o som é amplificado e um limitador segura os picos. Em 100% sai intocado.", { n: Math.round((player.volume - 1) * 100) });
   else if (player.volume < 1) status = t("Volume abaixo de 100%: o som é recalculado. Em 100% sai intocado.");
@@ -196,22 +203,31 @@ function QualityPopover({ status }: { status: string }) {
   const [secs, setSecs] = useState(player?.crossfade_secs ?? 6);
   if (!player) return null;
   const tr = player.track_id != null ? lib.byId.get(player.track_id) : null;
+  // Caminho do som, do arquivo até a placa. Etapa que mexe no som fica marcada.
+  const changes = [
+    player.resampled && t("conversão {from} → {to} kHz", { from: khz(player.src_rate), to: khz(player.out_rate) }),
+    player.rg_gain !== 1 && t("ReplayGain {db} dB", { db: rgDb(player.rg_gain) }),
+    player.volume !== 1 && t("volume {n}%", { n: Math.round(player.volume * 100) }),
+    (player.speed !== 1 || player.pitch !== 1) && t("velocidade ou tom"),
+  ].filter(Boolean) as string[];
+  const path: [string, string, boolean][] = [
+    [t("Arquivo"), `${tr?.codec ?? ""} · ${player.src_bits ? `${player.src_bits} bit · ` : ""}${khz(player.src_rate)} kHz`, false],
+    [t("Decodificação"), t("sem perda, conferida bit a bit com o ffmpeg"), false],
+    [t("Processamento"), changes.length ? changes.join(" · ") : t("nenhum"), changes.length > 0],
+    [t("Saída"), player.out_rate ? `${khz(player.out_rate)} kHz · ${player.out_bits} bit · ${t(player.out_mode)}` : t("pausado"), player.out_mode === "compartilhado"],
+    [t("Placa"), player.device || t("Padrão do Windows"), false],
+  ];
   return (
     <div className="popover qpop">
-      <h3>{t("Som")}</h3>
-      <dl>
-        <dt>{t("Arquivo")}</dt>
-        <dd>
-          {tr?.codec} · {player.src_bits ? `${player.src_bits} bit · ` : ""}
-          {khz(player.src_rate)} kHz
-        </dd>
-        <dt>{t("Saída")}</dt>
-        <dd>
-          {player.out_rate ? `${khz(player.out_rate)} kHz · ${player.out_bits} bit · ${t(player.out_mode)}` : t("pausado")}
-        </dd>
-        <dt>{t("Placa")}</dt>
-        <dd>{player.device || t("Padrão do Windows")}</dd>
-      </dl>
+      <h3>{t("Caminho do som")}</h3>
+      <ol className="qpath">
+        {path.map(([k, v, alters]) => (
+          <li key={k} className={alters ? "alters" : ""}>
+            <span>{k}</span>
+            {v}
+          </li>
+        ))}
+      </ol>
       <p className={`qstatus ${player.resampled || player.out_mode === "compartilhado" ? "warn" : ""}`}>{status}</p>
       <label className="row-toggle">
         <span>

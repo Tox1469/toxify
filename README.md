@@ -30,7 +30,13 @@ The SHA-256 and the build log are on each [release page](https://github.com/Tox1
 - **Mixes that learn your taste.** By genre, decade and artist, built from what you play to the end and what you skip. All computed on your machine.
 - **Tag editor.** Title, artist, album, year, track and genre written straight to the file. Each save goes to a copy first, gets checked (the audio must stay identical) and only then replaces the original. You can undo.
 - **Library cleanup.** Finds the same artist spelled two ways, site names stuck in titles, and discs of the same album showing up apart.
+- **Your gear, your rules.** Pick the output (your DAC or the Windows default), turn on ReplayGain (track or album) if you want leveled volume, and open the signal path to see every step from the file to the sound card, with anything that alters the sound flagged.
+- **Scrobbling.** ListenBrainz and Last.fm, with an offline queue.
+- **Playlists in and out.** Import .m3u/.m3u8 from foobar2000, MusicBee or VLC; export any playlist as .m3u8.
+- **Watches your folders.** New downloads show up on their own, no rescan needed.
+- **Your year in music.** A recap of your top songs, artists, albums, genres and listening hours, with a card to save and share. Computed locally.
 - **Windows and Discord.** Media keys, the Windows media controls, and "Listening to Toxify" on your Discord profile (can be turned off).
+- **One-click updates.** When a new version is out, an Update button downloads it, checks it against the release and reopens Toxify.
 
 ## Online services
 

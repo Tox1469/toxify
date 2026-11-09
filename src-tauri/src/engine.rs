@@ -17,8 +17,8 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use wasapi::{
-    calculate_period_100ns, initialize_mta, AudioClient, AudioRenderClient, DeviceEnumerator, Direction, Handle,
-    SampleType, StreamMode, WaveFormat,
+    calculate_period_100ns, initialize_mta, AudioClient, AudioRenderClient, Device, DeviceEnumerator, DeviceState,
+    Direction, Handle, SampleType, StreamMode, WaveFormat,
 };
 
 use crate::source::{OpenOpts, Source, CH};
@@ -51,6 +51,9 @@ pub enum Cmd {
     PlayNext(Vec<QTrack>),
     JumpTo(usize),
     RemoveAt(usize),
+    /// Saída escolhida (id do WASAPI); None = a padrão do Windows.
+    Device(Option<String>),
+    ReplayGain(u8),
     /// Ao abrir o app: fila e música de antes, pausada no mesmo ponto.
     Restore { queue: Vec<QTrack>, index: usize, at: f64, shuffle: bool, repeat: u8 },
 }
@@ -67,6 +70,9 @@ pub struct Prefs {
     /// 1.0 = original, 2.0 = uma oitava acima. Muda o tom sem mudar a velocidade.
     #[serde(default = "one")]
     pub pitch: f32,
+    /// ReplayGain das tags: 0 = desligado (bit-perfect), 1 = por faixa, 2 = por álbum.
+    #[serde(default)]
+    pub replaygain: u8,
 }
 
 fn one() -> f32 {
@@ -99,6 +105,9 @@ pub struct State {
     pub next_id: Option<i64>,
     pub next_mode: &'static str,
     pub error: Option<String>,
+    /// ReplayGain: modo e ganho aplicado agora na faixa da tela (1.0 = nenhum).
+    pub replaygain: u8,
+    pub rg_gain: f32,
 }
 
 #[derive(Serialize, Clone)]
@@ -132,9 +141,19 @@ struct Out {
 /// Taxas tentadas quando a placa não aceita a do arquivo (da maior pra menor).
 const RATES: [u32; 8] = [384000, 352800, 192000, 176400, 96000, 88200, 48000, 44100];
 
-fn try_exclusive(rate: u32) -> Result<Out> {
+/// A saída escolhida nas Configurações; sem escolha, ou se ela sumiu (DAC desligado), a padrão do Windows.
+fn pick_device(id: Option<&str>) -> Result<Device> {
     let enumerator = DeviceEnumerator::new()?;
-    let device = enumerator.get_default_device(Direction::Render)?;
+    if let Some(d) = id.and_then(|id| enumerator.get_device(id).ok()) {
+        if matches!(d.get_state(), Ok(DeviceState::Active)) {
+            return Ok(d);
+        }
+    }
+    Ok(enumerator.get_default_device(Direction::Render)?)
+}
+
+fn try_exclusive(rate: u32, id: Option<&str>) -> Result<Out> {
+    let device = pick_device(id)?;
     let name = device.get_friendlyname().unwrap_or_default();
     let probe = device.get_iaudioclient()?;
     // 24 bit dentro de 32 é o que a maioria dos DACs e placas onboard aceita.
@@ -174,9 +193,8 @@ fn try_exclusive(rate: u32) -> Result<Out> {
 
 /// Modo compartilhado: abre uma vez na taxa do mixer do Windows e nunca mais reabre.
 /// O Toxify converte cada faixa pra essa taxa (melhor que o Windows) e as trocas não têm buraco.
-fn try_shared() -> Result<Out> {
-    let enumerator = DeviceEnumerator::new()?;
-    let device = enumerator.get_default_device(Direction::Render)?;
+fn try_shared(id: Option<&str>) -> Result<Out> {
+    let device = pick_device(id)?;
     let name = device.get_friendlyname().unwrap_or_default();
     let mut client = device.get_iaudioclient()?;
     let rate = client.get_mixformat()?.get_samplespersec();
@@ -187,19 +205,19 @@ fn try_shared() -> Result<Out> {
     Ok(Out { client, render, event, rate, kind: Kind::F32, valid_bits: 32, exclusive: false, device: name, started: false })
 }
 
-fn open_output(rate: u32, exclusive: bool) -> Result<Out> {
+fn open_output(rate: u32, exclusive: bool, id: Option<&str>) -> Result<Out> {
     if exclusive {
-        if let Ok(o) = try_exclusive(rate) {
+        if let Ok(o) = try_exclusive(rate, id) {
             return Ok(o);
         }
         // A placa não faz essa taxa: usa a maior que ela aceitar (a faixa vai ser convertida).
         for r in RATES.iter().copied().filter(|&r| r != rate) {
-            if let Ok(o) = try_exclusive(r) {
+            if let Ok(o) = try_exclusive(r, id) {
                 return Ok(o);
             }
         }
     }
-    try_shared()
+    try_shared(id)
 }
 
 pub fn f32_to_i32(x: f32) -> i32 {
@@ -239,6 +257,53 @@ pub struct Heard {
 struct Deck {
     src: Source,
     qi: usize,
+    rg: Rg,
+}
+
+/// ReplayGain gravado nas tags: (ganho em dB, pico) da faixa e do álbum. Lido ao abrir a faixa.
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+struct Rg {
+    track: Option<(f32, Option<f32>)>,
+    album: Option<(f32, Option<f32>)>,
+}
+
+impl Rg {
+    fn read(path: &str) -> Rg {
+        use lofty::prelude::*;
+        let Ok(f) = lofty::read_from_path(path) else { return Rg::default() };
+        let mut rg = Rg::default();
+        for tag in f.tags() {
+            let num = |k: ItemKey| tag.get_string(k).and_then(parse_db);
+            if rg.track.is_none() {
+                rg.track = num(ItemKey::ReplayGainTrackGain).map(|g| (g, num(ItemKey::ReplayGainTrackPeak)));
+            }
+            if rg.album.is_none() {
+                rg.album = num(ItemKey::ReplayGainAlbumGain).map(|g| (g, num(ItemKey::ReplayGainAlbumPeak)));
+            }
+        }
+        rg
+    }
+
+    /// Ganho linear pro modo (0 desligado, 1 faixa, 2 álbum). Sem a tag pedida usa a outra; sem
+    /// nenhuma, 1.0. Nunca passa do pico (não estoura) e, sem pico conhecido, só abaixa.
+    fn gain(&self, mode: u8) -> f32 {
+        let pick = match mode {
+            1 => self.track.or(self.album),
+            2 => self.album.or(self.track),
+            _ => None,
+        };
+        let Some((db, peak)) = pick else { return 1.0 };
+        let g = 10f32.powf(db / 20.0);
+        match peak {
+            Some(p) if p > 0.0 => g.min(1.0 / p),
+            _ => g.min(1.0),
+        }
+    }
+}
+
+/// "-7.89 dB" / "+1.2 dB" / "0.988" → número.
+fn parse_db(s: &str) -> Option<f32> {
+    s.trim().trim_end_matches(|c: char| c.is_ascii_alphabetic() || c.is_whitespace()).parse().ok()
 }
 
 struct Fade {
@@ -309,10 +374,12 @@ pub struct Engine {
     /// Faixa na tela, segundos ouvidos dela, e se a próxima troca foi pedida na mão.
     heard: Option<(i64, f64)>,
     manual: bool,
+    /// Saída escolhida (id do WASAPI); None = a padrão do Windows.
+    device: Option<String>,
 }
 
 impl Engine {
-    pub fn spawn(app: AppHandle, rx: Receiver<Cmd>, prefs: Prefs) {
+    pub fn spawn(app: AppHandle, rx: Receiver<Cmd>, prefs: Prefs, device: Option<String>) {
         std::thread::Builder::new()
             .name("engine".into())
             .spawn(move || {
@@ -327,6 +394,7 @@ impl Engine {
                     reopen_next: None,
                     heard: None,
                     manual: false,
+                    device,
                     app,
                     rx,
                     queue: Vec::new(),
@@ -450,14 +518,13 @@ impl Engine {
             }
             Cmd::Exclusive(on) => {
                 self.prefs.exclusive = on;
-                if self.cur.is_some() {
-                    let pos = self.position();
-                    self.close_output();
-                    if self.playing {
-                        self.after = Some(After::Seek(pos));
-                    }
-                }
+                self.reopen_output();
             }
+            Cmd::Device(id) => {
+                self.device = id;
+                self.reopen_output();
+            }
+            Cmd::ReplayGain(mode) => self.prefs.replaygain = mode.min(2),
             Cmd::Shuffle(on) => {
                 self.shuffle = on;
                 let cur_id = self.queue.get(self.idx).map(|t| t.id);
@@ -534,6 +601,17 @@ impl Engine {
         self.emit();
     }
 
+    /// Mudou o modo ou a saída: fecha a placa e, se estava tocando, volta do mesmo ponto na nova.
+    fn reopen_output(&mut self) {
+        if self.cur.is_some() {
+            let pos = self.position();
+            self.close_output();
+            if self.playing {
+                self.after = Some(After::Seek(pos));
+            }
+        }
+    }
+
     fn shuffle_rest(&mut self) {
         // Fisher-Yates só no que vem depois da faixa atual.
         let start = (self.idx + 1).min(self.queue.len());
@@ -591,7 +669,7 @@ impl Engine {
             let deck = Source::open(Path::new(&t.path), opts)
                 .map(|mut src| {
                     src.wait_ready(Duration::from_secs(2));
-                    Deck { src, qi }
+                    Deck { src, qi, rg: Rg::read(&t.path) }
                 })
                 .map_err(|e| format!("{e:#}"));
             let _ = tx.send(Prepared { generation, deck, plan, manual });
@@ -684,7 +762,7 @@ impl Engine {
             }
         }
         self.close_output();
-        let o = open_output(rate, self.prefs.exclusive)?;
+        let o = open_output(rate, self.prefs.exclusive, self.device.as_deref())?;
         let r = o.rate;
         self.out = Some(o);
         Ok(r)
@@ -700,7 +778,7 @@ impl Engine {
         let t = &self.queue[qi];
         let mut src = Source::open(Path::new(&t.path), OpenOpts { start_secs: start, target_rate: Some(out_rate), skip_lead, fallback_secs: t.secs })?;
         src.wait_ready(Duration::from_secs(2));
-        Ok(Deck { src, qi })
+        Ok(Deck { src, qi, rg: Rg::read(&t.path) })
     }
 
     /// `fresh` = música começando agora (conta como nova audição). Seek e recuperação passam `false`.
@@ -925,6 +1003,7 @@ impl Engine {
         self.mix.clear();
         self.mix.resize(n * CH, 0.0);
         let rate = self.out_rate();
+        let rg_mode = self.prefs.replaygain;
         let mut w = 0;
         while w < n {
             let Some(cur) = self.cur.as_mut() else { break };
@@ -937,12 +1016,15 @@ impl Engine {
                 self.b.clear();
                 self.b.resize(chunk * CH, 0.0);
                 cur.src.read(&mut self.a);
+                let ra = cur.rg.gain(rg_mode);
+                let mut rb = 1.0;
                 if let Some((d, _)) = self.inc.as_mut() {
                     d.src.read(&mut self.b);
+                    rb = d.rg.gain(rg_mode);
                 }
                 for i in 0..chunk {
                     let t = (f.pos + i as u64) as f32 / f.len as f32;
-                    let (ga, gb) = ((t * FRAC_PI_2).cos(), (t * FRAC_PI_2).sin());
+                    let (ga, gb) = ((t * FRAC_PI_2).cos() * ra, (t * FRAC_PI_2).sin() * rb);
                     for c in 0..CH {
                         self.mix[(w + i) * CH + c] = self.a[i * CH + c] * ga + self.b[i * CH + c] * gb;
                     }
@@ -992,6 +1074,10 @@ impl Engine {
             }
 
             let got = cur.src.read(&mut self.mix[w * CH..(w + limit) * CH]);
+            let g = cur.rg.gain(rg_mode);
+            if g != 1.0 {
+                self.mix[w * CH..(w + got) * CH].iter_mut().for_each(|x| *x *= g);
+            }
             w += got;
             if got < limit {
                 if cur.src.drained() {
@@ -1100,9 +1186,11 @@ impl Engine {
         let (src_rate, src_bits, resampled, duration) = shown
             .map(|d| (d.src.info.native_rate, d.src.info.bits, d.src.info.resampled(), d.src.info.total_frames as f64 / d.src.info.out_rate.max(1) as f64))
             .unwrap_or_default();
+        let rg_gain = shown.map(|d| d.rg.gain(self.prefs.replaygain)).unwrap_or(1.0);
         let bitperfect = out.is_some_and(|o| o.exclusive && (o.valid_bits >= src_bits || o.kind == Kind::F32 && src_bits <= 24))
             && shown.is_some()
             && !resampled
+            && rg_gain == 1.0
             && self.fade.is_none()
             && self.ramp.is_none()
             && vol_gain(self.prefs.volume) == 1.0
@@ -1144,6 +1232,8 @@ impl Engine {
             next_id,
             next_mode,
             error: self.error.clone(),
+            replaygain: self.prefs.replaygain,
+            rg_gain,
         };
         let _ = self.app.emit("player", st);
     }

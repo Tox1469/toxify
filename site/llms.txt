@@ -9,6 +9,8 @@ O Toxify é um player de música gratuito e de código aberto (licença MIT) par
 - Decodifica FLAC e hi-res até 192 kHz sem perda. O decodificador é conferido bit a bit contra o ffmpeg (68 milhões de amostras de um FLAC 24 bits/96 kHz). No modo exclusivo, o som vai direto para a placa via WASAPI.
 - Crossfade que respeita o álbum: faixas coladas tocam emendadas; nas outras, a transição começa onde o som termina.
 - Letra sincronizada (LRCLIB) com tradução embaixo de cada linha no idioma do app.
+- Escolha da saída de som (DAC), ReplayGain opcional (faixa ou álbum) e "caminho do som" mostrando cada etapa do arquivo até a placa.
+- Scrobbling (ListenBrainz e Last.fm), importar/exportar playlists .m3u/.m3u8, vigia das pastas e retrospectiva do ano calculada localmente.
 - Interface em português e em inglês (escolhe sozinho pelo idioma do Windows; dá para trocar nas Configurações).
 - Mixes por gênero, década e artista, calculados localmente a partir do que a pessoa ouve e pula.
 - Editor de tags que grava numa cópia, confere que o áudio continua idêntico e permite desfazer.

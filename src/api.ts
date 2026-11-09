@@ -46,6 +46,9 @@ export type PlayerState = {
   next_id: number | null;
   next_mode: "" | "crossfade" | "emendada" | "troca de taxa";
   error: string | null;
+  /** ReplayGain: 0 desligado, 1 faixa, 2 álbum; e o ganho aplicado agora (1 = nenhum). */
+  replaygain: number;
+  rg_gain: number;
 };
 
 export type Lyrics = {
@@ -60,10 +63,13 @@ export type Lyrics = {
 
 export type Settings = {
   folders: string[];
-  prefs: { volume: number; crossfade: boolean; crossfade_secs: number; exclusive: boolean };
+  prefs: { volume: number; crossfade: boolean; crossfade_secs: number; exclusive: boolean; replaygain: number };
   translate: boolean;
   discord: boolean;
   auto_fix: boolean;
+  /** Saída de som escolhida; null = a padrão do Windows. */
+  device: string | null;
+  scrobble: { lb_token: string; lb_user: string; lastfm: { user: string; key: string } | null };
 };
 
 export type ArtistInfo = { key: string; name: string; albums: string[]; tags: string[] };
@@ -95,6 +101,10 @@ export const api = {
   setLike: (id: number, on: boolean) => invoke("set_like", { id, on }),
   /** [id, audições, pulos, última audição, audições nos últimos 30 dias] */
   plays: () => invoke<[number, number, number, number, number][]>("plays"),
+  /** Cada audição com from <= at < to (segundos unix): [faixa, quando, segundos ouvidos, pulou]. */
+  playLog: (from: number, to: number) => invoke<[number, number, number, boolean][]>("play_log", { from, to }),
+  /** Grava um .png no caminho escolhido no diálogo de salvar. */
+  saveFile: (path: string, data: number[]) => invoke("save_file", { path, data }),
   playlists: () => invoke<Playlist[]>("playlists"),
   playlistCreate: (name: string, tracks: number[] = []) => invoke<number>("playlist_create", { name, tracks }),
   playlistRename: (id: number, name: string) => invoke("playlist_rename", { id, name }),
@@ -115,6 +125,16 @@ export const api = {
   setVolume: (v: number) => invoke("set_volume", { v }),
   setCrossfade: (on: boolean, secs: number) => invoke("set_crossfade", { on, secs }),
   setExclusive: (on: boolean) => invoke("set_exclusive", { on }),
+  setReplayGain: (mode: number) => invoke("set_replaygain", { mode }),
+  devices: () => invoke<{ id: string; name: string }[]>("list_devices"),
+  setDevice: (id: string | null) => invoke("set_device", { id }),
+  exportPlaylist: (id: number, path: string) => invoke("export_playlist", { id, path }),
+  listenbrainzConnect: (token: string) => invoke<string>("listenbrainz_connect", { token }),
+  lastfmAvailable: () => invoke<boolean>("lastfm_available"),
+  lastfmBegin: () => invoke("lastfm_begin"),
+  lastfmFinish: () => invoke<string>("lastfm_finish"),
+  scrobbleDisconnect: (service: "listenbrainz" | "lastfm") => invoke("scrobble_disconnect", { service }),
+  importPlaylist: (path: string) => invoke<{ id: number; name: string; found: number; missing: number }>("import_playlist", { path }),
   /** 0.5 a 2.0; 1.0 = normal. Não muda o tom. */
   setSpeed: (v: number) => invoke("set_speed", { v }),
   /** Razão do tom: 1.0 = original, 2^(semitons/12). Não muda a velocidade. */

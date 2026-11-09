@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { api, Change, Playlist, TagField, Track } from "./api";
 import { IClose, IFolder, IHeart, IPause, IPlay, IShuffle, IUndo, IWand } from "./icons";
 import { LANG, LOCALE, setLang, t } from "./i18n";
 import { Album, fmtLong, fmtTime, fold, genreLabel, GENRE_TREE, isHiRes, khz, Mix, plural, quality, showArtists, Suggestion, suggestions } from "./model";
 import { LyricsView, Switch, useLyrics } from "./player";
+import { RecapBanner } from "./recap";
 import { askAddToPlaylist, usePosition, useStore } from "./store";
 import { AlbumCard, ArtistCard, ArtistImage, ArtistLinks, Cover, MixArt, Modal, Mosaic, MoreButton, PlayButton, QualityTag, Shelf, TrackList, useCoverColor } from "./ui";
 
@@ -73,6 +74,7 @@ export function Home() {
           </div>
         ))}
       </div>
+      <RecapBanner />
       {s.mixes.length > 0 && (
         <Shelf title={t("Feito pra você")} onMore={() => s.go({ v: "mixes" })}>
           {s.mixes.map((m) => (
@@ -681,6 +683,7 @@ export function PlaylistPage({ id }: { id: number }) {
           items={() => [
             { label: t("Renomear"), onClick: () => setRenaming(true) },
             ...(tracks.length ? [{ label: t("Adicionar à fila"), onClick: () => api.enqueue(ids).then(() => s.showToast({ text: t("Playlist adicionada à fila") })) }] : []),
+            ...(tracks.length ? [{ label: t("Exportar (.m3u8)"), onClick: () => exportPlaylist(s, pl.id, pl.name) }] : []),
             "sep",
             { label: t("Apagar playlist"), danger: true, onClick: () => setDeleting(true) },
           ]}
@@ -1050,6 +1053,26 @@ export function SettingsPage() {
       </section>
       <section>
         <h2 className="sec">{t("Som")}</h2>
+        <OutputPicker />
+        <label className="row-toggle">
+          <span>
+            {t("Nivelar o volume (ReplayGain)")}
+            <small>{t("Usa o ReplayGain gravado nas tags pra tudo tocar no mesmo volume. Por álbum mantém a diferença entre as faixas do disco. Ligado, o som deixa de ser bit a bit.")}</small>
+          </span>
+          <select
+            value={s.player?.replaygain ?? st.prefs.replaygain ?? 0}
+            onChange={(e) => {
+              const mode = Number(e.target.value);
+              s.setSettings({ ...st, prefs: { ...st.prefs, replaygain: mode } });
+              api.setReplayGain(mode);
+            }}
+            aria-label={t("Nivelar o volume (ReplayGain)")}
+          >
+            <option value={0}>{t("Desligado")}</option>
+            <option value={1}>{t("Por faixa")}</option>
+            <option value={2}>{t("Por álbum")}</option>
+          </select>
+        </label>
         <label className="row-toggle">
           <span>
             {t("Modo exclusivo")}
@@ -1106,6 +1129,7 @@ export function SettingsPage() {
           {t("O gênero de cada artista vem das tags das músicas. Se estiver errado, troque na página do artista: os mixes passam a usar a sua escolha.")}
         </p>
       </section>
+      <ScrobbleSettings />
       <section>
         <h2 className="sec">Discord</h2>
         <label className="row-toggle">
@@ -1139,6 +1163,158 @@ export function SettingsPage() {
         </label>
       </section>
     </div>
+  );
+}
+
+/** ListenBrainz (token colado) e Last.fm (autoriza no site). */
+function ScrobbleSettings() {
+  const s = useStore();
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [lastfm, setLastfm] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    api.lastfmAvailable().then(setLastfm).catch(() => {});
+  }, []);
+  const st = s.settings;
+  if (!st) return null;
+  const acc = st.scrobble;
+  const fail = (e: unknown) => s.showToast({ text: t("Não deu pra conectar: {e}", { e: String(e) }) });
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await f();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const off = (service: "listenbrainz" | "lastfm") => {
+    api.scrobbleDisconnect(service);
+    s.setSettings({ ...st, scrobble: service === "lastfm" ? { ...acc, lastfm: null } : { ...acc, lb_token: "", lb_user: "" } });
+  };
+  return (
+    <section>
+      <h2 className="sec">Scrobbling</h2>
+      <p className="muted">
+        {t("Manda o que você ouve pro seu perfil, pra estatísticas e recomendações. Conta a música tocada até a metade ou por 4 minutos. Sem internet, guarda e manda depois.")}
+      </p>
+      <div className="row-toggle">
+        <span>
+          ListenBrainz
+          <small>
+            {acc.lb_user
+              ? t("Conectado como {user}.", { user: acc.lb_user })
+              : t("Cole o token da sua conta: em listenbrainz.org, no seu perfil, \"User token\".")}
+          </small>
+        </span>
+        {acc.lb_user ? (
+          <button className="btn" onClick={() => off("listenbrainz")}>
+            {t("Desconectar")}
+          </button>
+        ) : (
+          <div className="scrobble-token">
+            <input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder={t("Token")}
+              aria-label={t("Token do ListenBrainz")}
+              spellCheck={false}
+            />
+            <button
+              className="btn"
+              disabled={!token.trim() || busy}
+              onClick={() =>
+                run(async () => {
+                  const user = await api.listenbrainzConnect(token);
+                  s.setSettings({ ...st, scrobble: { ...acc, lb_token: token.trim(), lb_user: user } });
+                  setToken("");
+                })
+              }
+            >
+              {t("Conectar")}
+            </button>
+          </div>
+        )}
+      </div>
+      {lastfm && (
+        <div className="row-toggle">
+          <span>
+            Last.fm
+            <small>
+              {acc.lastfm
+                ? t("Conectado como {user}.", { user: acc.lastfm.user })
+                : waiting
+                  ? t("Autorize o Toxify na página do Last.fm que abriu no navegador e volte aqui.")
+                  : t("Abre o site do Last.fm pra você autorizar o Toxify. Não pede sua senha aqui.")}
+            </small>
+          </span>
+          {acc.lastfm ? (
+            <button className="btn" onClick={() => off("lastfm")}>
+              {t("Desconectar")}
+            </button>
+          ) : waiting ? (
+            <button
+              className="btn primary"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  const user = await api.lastfmFinish();
+                  s.setSettings({ ...st, scrobble: { ...acc, lastfm: { user, key: "" } } });
+                  setWaiting(false);
+                })
+              }
+            >
+              {t("Já autorizei")}
+            </button>
+          ) : (
+            <button className="btn" disabled={busy} onClick={() => run(async () => (await api.lastfmBegin(), setWaiting(true)))}>
+              {t("Conectar")}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Onde o som sai: a padrão do Windows (acompanha quando ela muda) ou um DAC/fone escolhido. */
+function OutputPicker() {
+  const s = useStore();
+  const [devs, setDevs] = useState<{ id: string; name: string }[]>([]);
+  const load = () => api.devices().then(setDevs).catch(() => {});
+  useEffect(() => {
+    load();
+  }, []);
+  const st = s.settings;
+  if (!st) return null;
+  const gone = st.device && !devs.some((d) => d.id === st.device);
+  return (
+    <label className="row-toggle">
+      <span>
+        {t("Saída de som")}
+        <small>{t("Onde o Toxify toca. No padrão do Windows, ele acompanha a saída que estiver marcada lá. Se a escolhida for desligada, volta pra padrão.")}</small>
+      </span>
+      <select
+        value={st.device ?? ""}
+        onFocus={load}
+        onChange={(e) => {
+          const id = e.target.value || null;
+          s.setSettings({ ...st, device: id });
+          api.setDevice(id);
+        }}
+        aria-label={t("Saída de som")}
+      >
+        <option value="">{t("Padrão do Windows")}</option>
+        {devs.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+        {gone && <option value={st.device!}>{t("Saída escolhida (desligada)")}</option>}
+      </select>
+    </label>
   );
 }
 
@@ -1230,6 +1406,39 @@ export function FixPage() {
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------- playlists em .m3u
+
+const M3U = [{ name: "Playlist M3U", extensions: ["m3u8", "m3u"] }];
+
+async function exportPlaylist(s: ReturnType<typeof useStore>, id: number, name: string) {
+  const path = await save({ title: t("Exportar playlist"), defaultPath: `${name.replace(/[\\/:*?"<>|]/g, " ").trim() || "Playlist"}.m3u8`, filters: M3U });
+  if (!path) return;
+  try {
+    await api.exportPlaylist(id, path);
+    s.showToast({ text: t("Playlist exportada") });
+  } catch (e) {
+    s.showToast({ text: t("Não deu pra exportar: {e}", { e: String(e) }) });
+  }
+}
+
+/** Traz uma playlist de outro player (foobar2000, MusicBee, VLC...) e abre ela. */
+export async function importPlaylist(s: ReturnType<typeof useStore>) {
+  const path = await open({ title: t("Importar playlist"), filters: M3U });
+  if (typeof path !== "string") return;
+  try {
+    const r = await api.importPlaylist(path);
+    await s.reloadPlaylists();
+    s.go({ v: "playlist", id: r.id });
+    s.showToast({
+      text: r.missing
+        ? t("{found} de {total} músicas importadas. As outras não estão na sua biblioteca.", { found: r.found, total: r.found + r.missing })
+        : t("Playlist \"{name}\" importada", { name: r.name }),
+    });
+  } catch (e) {
+    s.showToast({ text: t("Não deu pra importar: {e}", { e: String(e) }) });
+  }
 }
 
 async function applyUndo(s: ReturnType<typeof useStore>) {

@@ -30,7 +30,13 @@ O SHA-256 e o log do build ficam na página de cada [versão](https://github.com
 - **Mixes do seu gosto.** Por gênero, década e artista, montados com o que você ouve até o fim e o que você pula. O cálculo é feito no seu computador.
 - **Editor de informações.** Título, artista, álbum, ano, faixa e gênero gravados direto no arquivo. Cada gravação é feita numa cópia, conferida (o áudio precisa continuar idêntico) e só então troca o original. Dá para desfazer.
 - **Biblioteca arrumada.** Encontra artista escrito de dois jeitos, nome de site no título e CDs separados do mesmo álbum.
+- **Do seu jeito, no seu equipamento.** Escolha a saída (o seu DAC ou a padrão do Windows), ligue o ReplayGain (por faixa ou por álbum) se quiser volume nivelado e abra o caminho do som pra ver cada etapa do arquivo até a placa, com o que altera o som marcado.
+- **Scrobbling.** ListenBrainz e Last.fm, com fila pra quando estiver sem internet.
+- **Playlists de outros players.** Importa .m3u/.m3u8 do foobar2000, MusicBee ou VLC e exporta qualquer playlist em .m3u8.
+- **Vigia as pastas.** O que você baixa aparece sozinho, sem precisar ler a biblioteca de novo.
+- **Retrospectiva do ano.** Músicas, artistas, álbuns, gêneros e horários que você mais ouviu, com um cartão pra salvar e compartilhar. Calculada no seu computador.
 - **Windows e Discord.** Teclas de mídia, controles no painel do Windows e "Ouvindo Toxify" no perfil do Discord (dá para desligar).
+- **Atualização com um clique.** Quando sai versão nova, o botão Atualizar baixa, confere com a release e reabre o Toxify.
 
 ## Serviços online
 

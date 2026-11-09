@@ -50,7 +50,11 @@ jobs:
           TV: ${{ inputs.test_version }}
         run: sed -i "0,/^version = .*/s//version = \"$TV\"/" src-tauri/Cargo.toml && grep -m1 '^version' src-tauri/Cargo.toml
 
+      # Chave do Toxify no Last.fm (sem os segredos, o app sai sem a opção do Last.fm).
       - run: npm run release
+        env:
+          TOXIFY_LASTFM_KEY: ${{ secrets.LASTFM_KEY }}
+          TOXIFY_LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
       - name: Upload test build
         if: inputs.test_version != ''

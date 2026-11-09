@@ -26,6 +26,7 @@ import {
   QueuePage,
   SearchPage,
   SettingsPage,
+  importPlaylist,
 } from "./views";
 
 export default function App() {
@@ -310,7 +311,17 @@ function Sidebar() {
           <ILibrary size={22} />
           {t("Sua biblioteca")}
         </button>
-        <button className="sb-new" onClick={() => setCreating(true)} aria-label={t("Criar playlist")} title={t("Criar playlist")}>
+        <button
+          className="sb-new"
+          onClick={(e) =>
+            s.openMenu(e, [
+              { label: t("Nova playlist"), onClick: () => setCreating(true) },
+              { label: t("Importar playlist (.m3u)"), onClick: () => importPlaylist(s) },
+            ])
+          }
+          aria-label={t("Criar playlist")}
+          title={t("Criar playlist")}
+        >
           +
         </button>
       </div>
