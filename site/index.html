@@ -173,7 +173,7 @@
             Baixar para Windows
           </a>
           <div class="meta">
-            <strong>Versão 0.3.0</strong> · Windows 10 e 11, 64 bits · 10 MB<br />
+            <strong>Versão <span data-ver>0.3.0</span></strong> · Windows 10 e 11, 64 bits · <span data-mb>10</span> MB<br />
             Gratuito e de código aberto. Não pede conta nem senha de administrador.
           </div>
         </div>
@@ -252,7 +252,7 @@
 
   <footer>
     <div class="wrap">
-      <span>Toxify 0.3.0 · Licença MIT</span>
+      <span>Toxify <span data-ver>0.3.0</span> · Licença MIT</span>
       <a class="built" href="https://tox.dev.br">Built by Tox</a>
     </div>
   </footer>
@@ -260,6 +260,17 @@
 <script>
   // Quem abre o link no celular (o caso comum quando chega pelo WhatsApp) fica sabendo que é para o PC.
   if (!/Windows/i.test(navigator.userAgent)) document.body.classList.add("not-windows");
+
+  // Versão e tamanho vêm da última release do GitHub: a página nunca mostra número velho.
+  fetch("https://api.github.com/repos/Tox1469/toxify/releases/latest")
+    .then((r) => r.json())
+    .then((r) => {
+      const v = r.tag_name.replace(/^v/, "");
+      const a = r.assets.find((x) => x.name === "Toxify-Setup.exe");
+      document.querySelectorAll("[data-ver]").forEach((e) => (e.textContent = v));
+      if (a) document.querySelectorAll("[data-mb]").forEach((e) => (e.textContent = Math.round(a.size / 1048576)));
+    })
+    .catch(() => {});
 </script>
 </body>
 </html>
