@@ -1255,19 +1255,24 @@ function ScrobbleSettings() {
               {t("Desconectar")}
             </button>
           ) : waiting ? (
-            <button
-              className="btn primary"
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const user = await api.lastfmFinish();
-                  s.setSettings({ ...st, scrobble: { ...acc, lastfm: { user, key: "" } } });
-                  setWaiting(false);
-                })
-              }
-            >
-              {t("Já autorizei")}
-            </button>
+            <div className="row-btns">
+              <button className="btn ghost" disabled={busy} onClick={() => run(() => api.lastfmBegin() as Promise<void>)}>
+                {t("Abrir o site de novo")}
+              </button>
+              <button
+                className="btn primary"
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    const user = await api.lastfmFinish();
+                    s.setSettings({ ...st, scrobble: { ...acc, lastfm: { user, key: "" } } });
+                    setWaiting(false);
+                  })
+                }
+              >
+                {t("Já autorizei")}
+              </button>
+            </div>
           ) : (
             <button className="btn" disabled={busy} onClick={() => run(async () => (await api.lastfmBegin(), setWaiting(true)))}>
               {t("Conectar")}

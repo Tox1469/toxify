@@ -493,4 +493,5 @@ const EN: Record<string, string> = {
   "Autorize o Toxify na página do Last.fm que abriu no navegador e volte aqui.": "Authorize Toxify on the Last.fm page that opened in your browser, then come back here.",
   "Abre o site do Last.fm pra você autorizar o Toxify. Não pede sua senha aqui.": "Opens the Last.fm site so you can authorize Toxify. Your password is never asked here.",
   "Já autorizei": "I've authorized it",
+  "Abrir o site de novo": "Open the site again",
 };

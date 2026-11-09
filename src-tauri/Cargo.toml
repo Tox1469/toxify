@@ -1,6 +1,6 @@
 [package]
 name = "toxify"
-version = "0.3.0"
+version = "0.3.1"
 description = "Toxify, player de música local"
 authors = ["Tox"]
 edition = "2024"

@@ -214,6 +214,10 @@ async fn lastfm_call(params: Vec<(&str, String)>, post: bool) -> Result<Value> {
     let req = if post { http.post(LASTFM_API).form(&params) } else { http.get(LASTFM_API).query(&params) };
     let v: Value = req.send().await?.json().await?;
     if let Some(e) = v.get("error") {
+        // 14 = token ainda não autorizado no site.
+        if e.as_i64() == Some(14) {
+            bail!("o Last.fm ainda não recebeu sua autorização. Autorize na página que abriu no navegador e tente de novo");
+        }
         bail!("Last.fm {e}: {}", v["message"].as_str().unwrap_or(""));
     }
     Ok(v)

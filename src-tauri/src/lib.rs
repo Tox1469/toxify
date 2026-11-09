@@ -489,7 +489,8 @@ fn lastfm_available() -> bool {
 async fn lastfm_begin(s: State<'_, App>) -> R<()> {
     let (token, url) = scrobble::lastfm_begin().await.map_err(err)?;
     *s.lastfm_token.lock().unwrap() = Some(token);
-    std::process::Command::new("explorer").arg(&url).spawn().map_err(err)?;
+    // Navegador padrão. O explorer.exe se perde com "?" e "&" na URL e abre uma pasta (aconteceu na 0.3.0).
+    std::process::Command::new("rundll32.exe").args(["url.dll,FileProtocolHandler", url.as_str()]).spawn().map_err(err)?;
     Ok(())
 }
 
